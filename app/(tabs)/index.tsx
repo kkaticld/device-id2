@@ -1,75 +1,239 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useDeviceId } from '@/hooks/useDeviceId';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function HomeScreen() {
+  const { deviceId, isLoading, error, platform, permissionStatus, requestPermission } = useDeviceId();
+  const buttonColor = useThemeColor({}, 'tint');
+  const buttonTextColor = useThemeColor({ light: '#FFFFFF', dark: '#FFFFFF' }, 'background');
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+
+  const handleCopyToClipboard = async () => {
+    if (deviceId) {
+      await Clipboard.setStringAsync(deviceId);
+      const idType = platform === 'ios' ? 'IDFA' : 'GAID';
+      Alert.alert('复制成功', `${idType} 已复制到剪贴板`);
+    }
+  };
+
+  const getTitle = () => {
+    if (platform === 'ios') return 'IDFA:';
+    return 'GAID:';
+  };
+
+  const handleRequestPermission = async () => {
+    try {
+      setIsRequestingPermission(true);
+      await requestPermission();
+    } catch (err) {
+      console.error('请求权限失败:', err);
+    } finally {
+      setIsRequestingPermission(false);
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ThemedView style={styles.container}>
+      {isLoading || isRequestingPermission ? (
+        <ThemedView style={styles.loadingContainer}>
+          <ActivityIndicator size="large" />
+          <ThemedText style={styles.loadingText}>
+            {isRequestingPermission ? '请求权限中...' : '正在获取设备ID...'}
+          </ThemedText>
+        </ThemedView>
+      ) : deviceId ? (
+        <ThemedView style={styles.successContainer}>
+          <ThemedText type="subtitle" style={styles.title}>
+            {getTitle()}
+          </ThemedText>
+          <ThemedText style={styles.deviceIdText} selectable>
+            {deviceId}
+          </ThemedText>
+          <TouchableOpacity 
+            style={[styles.copyButton, { backgroundColor: buttonColor }]}
+            onPress={handleCopyToClipboard}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={[styles.copyButtonText, { color: buttonTextColor }]}>复制</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      ) : permissionStatus === 'denied' && platform === 'ios' ? (
+        <ThemedView style={styles.permissionContainer}>
+          <ThemedText type="subtitle" style={styles.title}>
+            IDFA:
+          </ThemedText>
+          <ThemedText style={styles.permissionText}>
+            需要在设置中手动开启跟踪权限
+          </ThemedText>
+          <ThemedText style={styles.instructionText}>
+            请打开 设置 → 隐私与安全 → 跟踪 → 开启本应用的跟踪权限
+          </ThemedText>
+          <TouchableOpacity 
+            style={[styles.permissionButton, { backgroundColor: buttonColor }]}
+            onPress={handleRequestPermission}
+            activeOpacity={0.7}
+            disabled={isRequestingPermission}
+          >
+            <ThemedText style={[styles.permissionButtonText, { color: buttonTextColor }]}>
+              重试获取
+            </ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      ) : error ? (
+        <ThemedView style={styles.errorContainer}>
+          <ThemedText type="subtitle" style={styles.title}>
+            {getTitle()}
+          </ThemedText>
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
+          {platform === 'ios' && permissionStatus === 'denied' && (
+            <TouchableOpacity 
+              style={[styles.retryButton, { backgroundColor: buttonColor }]}
+              onPress={handleRequestPermission}
+              activeOpacity={0.7}
+              disabled={isRequestingPermission}
+            >
+              <ThemedText style={[styles.retryButtonText, { color: buttonTextColor }]}>
+                重新授权
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+          {error.includes('模拟器') && (
+            <ThemedText style={styles.simulatorHint}>
+              📱 请在真实的iOS设备上测试以获取真实的IDFA
+            </ThemedText>
+          )}
+        </ThemedView>
+      ) : (
+        <ThemedView style={styles.errorContainer}>
+          <ThemedText style={styles.errorText}>未获取到设备ID</ThemedText>
+        </ThemedView>
+      )}
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    padding: 20,
   },
-  stepContainer: {
-    gap: 8,
+  loadingContainer: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontStyle: 'italic',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
+    textAlign: 'center',
+  },
+  successContainer: {
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  deviceIdText: {
+    fontSize: 16,
+    fontFamily: 'monospace',
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 10,
+  },
+  copyButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  copyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  permissionContainer: {
+    alignItems: 'center',
+    gap: 20,
+    paddingHorizontal: 20,
+  },
+  permissionText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    opacity: 0.8,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  instructionText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    opacity: 0.6,
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  permissionButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  permissionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  simulatorHint: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 16,
+    opacity: 0.7,
+    lineHeight: 20,
   },
 });

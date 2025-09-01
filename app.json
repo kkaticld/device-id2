@@ -9,14 +9,24 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.deviceid2.app",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "This app needs local network access to connect to the development server during testing. This permission is not required for the production version.",
+        "NSUserTrackingUsageDescription": "This app would like to access device advertising ID for testing purposes",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ],
+      "package": "com.deviceid2.app"
     },
     "web": {
       "bundler": "metro",
@@ -33,10 +43,17 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-tracking-transparency"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5e66cc88-05b8-4c75-b643-8acc0cedd827"
+      }
     }
   }
 }

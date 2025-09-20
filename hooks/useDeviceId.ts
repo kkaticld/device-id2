@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
 import * as Application from 'expo-application';
 import * as TrackingTransparency from 'expo-tracking-transparency';
+import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 interface DeviceIdResult {
   deviceId: string | null;
@@ -18,107 +18,34 @@ export function useDeviceId(): DeviceIdResult {
   const [error, setError] = useState<string | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<'undetermined' | 'denied' | 'granted' | 'not_applicable'>('undetermined');
 
-  const platformType = Platform.OS === 'ios' ? 'ios' 
-                      : Platform.OS === 'android' ? 'android'
-                      : Platform.OS === 'web' ? 'web'
-                      : 'unknown';
+  const platformType = Platform.OS === 'ios' ? 'ios'
+    : Platform.OS === 'android' ? 'android'
+    : Platform.OS === 'web' ? 'web'
+    : 'unknown';
 
-
-  const getDeviceId = async () => {
+  const getAdvertisingId = async () => {
+    console.log('[DeviceID] Attempting to get Advertising ID');
     try {
-      setIsLoading(true);
-      setError(null);
-      console.log('[DeviceID] 开始获取设备ID, 平台:', Platform.OS);
-
-      if (Platform.OS === 'web') {
-        setPermissionStatus('not_applicable');
-        setError('设备广告ID在Web平台不可用');
+      // This function should only be called after permission is granted on iOS
+      const isSimulator = Platform.OS === 'ios' && (await Application.getIosApplicationReleaseTypeAsync()) === Application.ApplicationReleaseType.SIMULATOR;
+      if (isSimulator) {
+        setError('iOS模拟器不支持获取真实的广告ID，请在真机上测试');
         setDeviceId(null);
         return;
       }
 
-      let advertisingId: string | null = null;
-
-      if (Platform.OS === 'ios') {
-        console.log('[DeviceID] iOS平台，检查TrackingTransparency可用性');
-        
-        // 检查API是否可用
-        const isApiAvailable = TrackingTransparency.isAvailable();
-        console.log('[DeviceID] TrackingTransparency API 可用性:', isApiAvailable);
-        
-        if (!isApiAvailable) {
-          setError('当前设备不支持广告跟踪功能');
-          setPermissionStatus('not_applicable');
-          setDeviceId(null);
-          return;
-        }
-
-        // iOS 需要请求跟踪权限
-        console.log('[DeviceID] 请求iOS跟踪权限');
-        const permissionResult = await TrackingTransparency.requestTrackingPermissionsAsync();
-        console.log('[DeviceID] 权限请求结果:', permissionResult);
-        
-        if (permissionResult.status === TrackingTransparency.PermissionStatus.GRANTED) {
-          setPermissionStatus('granted');
-          console.log('[DeviceID] 权限已授予，开始获取广告ID');
-          
-          try {
-            // 先检查是否是模拟器
-            const releaseType = await Application.getIosApplicationReleaseTypeAsync();
-            const isSimulator = releaseType === Application.ApplicationReleaseType.SIMULATOR;
-            console.log('[DeviceID] iOS应用类型:', releaseType, '是否模拟器:', isSimulator);
-            
-            if (isSimulator) {
-              setError('iOS模拟器不支持获取真实的广告ID，请在真机上测试');
-              setDeviceId(null);
-              return;
-            }
-            
-            // 在真机上获取广告ID
-            advertisingId = TrackingTransparency.getAdvertisingId();
-            console.log('[DeviceID] 获取到的广告ID:', advertisingId);
-            
-            if (advertisingId && advertisingId !== '00000000-0000-0000-0000-000000000000') {
-              setDeviceId(advertisingId);
-              console.log('[DeviceID] 成功设置设备ID');
-            } else {
-              setError(`获取到的广告ID无效或被用户在设置中禁用: ${advertisingId || 'null'}`);
-              setDeviceId(null);
-            }
-          } catch (getIdError) {
-            console.error('[DeviceID] 获取广告ID时出错:', getIdError);
-            setError(`获取广告ID失败: ${getIdError instanceof Error ? getIdError.message : '未知错误'}`);
-            setDeviceId(null);
-          }
-        } else {
-          setPermissionStatus('denied');
-          console.log('[DeviceID] 用户拒绝了权限请求');
-          setError('需要授权才能获取广告ID');
-          setDeviceId(null);
-        }
-      } else if (Platform.OS === 'android') {
-        setPermissionStatus('not_applicable'); // Android 不需要显式权限
-        console.log('[DeviceID] Android平台，直接获取广告ID');
-        
-        try {
-          advertisingId = TrackingTransparency.getAdvertisingId();
-          console.log('[DeviceID] Android 获取到的广告ID:', advertisingId ? '有效ID' : 'null');
-          
-          if (advertisingId && advertisingId !== '00000000-0000-0000-0000-000000000000') {
-            setDeviceId(advertisingId);
-          } else {
-            setError(`Android设备获取到的广告ID无效或被用户禁用: ${advertisingId || 'null'}`);
-            setDeviceId(null);
-          }
-        } catch (androidError) {
-          console.error('[DeviceID] Android获取广告ID出错:', androidError);
-          setError(`Android设备无法获取广告ID: ${androidError instanceof Error ? androidError.message : '未知错误'}`);
-          setDeviceId(null);
-        }
+      const id = TrackingTransparency.getAdvertisingId();
+      console.log('[DeviceID] Got ID:', id);
+      if (id && id !== '00000000-0000-0000-0000-000000000000') {
+        setDeviceId(id);
+      } else {
+        // This can happen if user disables tracking in system settings after granting permission
+        setError('广告ID不可用。请检查系统设置中的“跟踪”权限。');
+        setDeviceId(null);
       }
-    } catch (err) {
-      console.error('[DeviceID] 获取设备ID整体失败:', err);
-      setError(`获取失败: ${err instanceof Error ? err.message : '未知错误'}`);
+    } catch (e) {
+      console.error('[DeviceID] Error getting advertising ID:', e);
+      setError(`获取广告ID失败: ${e instanceof Error ? e.message : '未知错误'}`);
       setDeviceId(null);
     } finally {
       setIsLoading(false);
@@ -126,84 +53,84 @@ export function useDeviceId(): DeviceIdResult {
   };
 
   const requestPermission = async () => {
-    if (Platform.OS === 'ios') {
-      await getDeviceId();
+    console.log('[DeviceID] Requesting tracking permission');
+    setIsLoading(true);
+    try {
+      const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
+      console.log('[DeviceID] Permission status after request:', status);
+      setPermissionStatus(status);
+      if (status === 'granted') {
+        await getAdvertisingId();
+      } else {
+        // If denied or undetermined, just update status and stop loading.
+        // The UI will show the appropriate message. A denied permission is not an error.
+        setDeviceId(null);
+        setIsLoading(false);
+      }
+    } catch (e) {
+      console.error('[DeviceID] Error requesting permission:', e);
+      setError(`请求权限时出错: ${e instanceof Error ? e.message : '未知错误'}`);
+      setDeviceId(null);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // 初始化时检查权限状态
-    const initializePermissions = async () => {
-      try {
-        console.log('[DeviceID] 初始化权限检查, 平台:', Platform.OS);
-        
-        if (Platform.OS === 'ios') {
-          // 检查API可用性
-          const isApiAvailable = TrackingTransparency.isAvailable();
-          console.log('[DeviceID] TrackingTransparency API 可用性:', isApiAvailable);
-          
-          if (!isApiAvailable) {
-            setError('当前设备不支持广告跟踪功能（可能是模拟器或系统限制）');
-            setPermissionStatus('not_applicable');
-            setIsLoading(false);
-            return;
-          }
+    const checkInitialStatus = async () => {
+      setIsLoading(true);
+      console.log('[DeviceID] Initializing, platform:', Platform.OS);
 
-          // 先检查当前权限状态，不立即请求
-          const permissionResult = await TrackingTransparency.getTrackingPermissionsAsync();
-          console.log('[DeviceID] 当前权限状态:', permissionResult);
-          
-          if (permissionResult.status === TrackingTransparency.PermissionStatus.GRANTED) {
-            // 如果已经授权，直接获取广告ID
-            setPermissionStatus('granted');
-            console.log('[DeviceID] 已有权限，直接获取广告ID');
-            
-            try {
-              // 先检查是否是模拟器
-              const releaseType = await Application.getIosApplicationReleaseTypeAsync();
-              const isSimulator = releaseType === Application.ApplicationReleaseType.SIMULATOR;
-              console.log('[DeviceID] iOS应用类型:', releaseType, '是否模拟器:', isSimulator);
-              
-              if (isSimulator) {
-                setError('iOS模拟器不支持获取真实的广告ID，请在真机上测试');
-                return;
-              }
-              
-              const advertisingId = TrackingTransparency.getAdvertisingId();
-              console.log('[DeviceID] 直接获取结果:', advertisingId);
-              
-              if (advertisingId && advertisingId !== '00000000-0000-0000-0000-000000000000') {
-                setDeviceId(advertisingId);
-              } else {
-                setError(`获取到的广告ID无效或被用户在设置中禁用: ${advertisingId || 'null'}`);
-              }
-            } catch (getIdError) {
-              console.error('[DeviceID] 直接获取广告ID失败:', getIdError);
-              setError(`获取广告ID失败: ${getIdError instanceof Error ? getIdError.message : '未知错误'}`);
-            }
-            setIsLoading(false);
-          } else if (permissionResult.status === TrackingTransparency.PermissionStatus.DENIED) {
-            // 已经拒绝
-            setPermissionStatus('denied');
-            setError('需要授权才能获取广告ID');
-            setIsLoading(false);
+      if (Platform.OS === 'web') {
+        setPermissionStatus('not_applicable');
+        setError('设备广告ID在Web平台不可用');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (Platform.OS === 'android') {
+        setPermissionStatus('not_applicable'); // No explicit permission needed
+        try {
+          const id = TrackingTransparency.getAdvertisingId();
+          if (id && id !== '00000000-0000-0000-0000-000000000000') {
+            setDeviceId(id);
           } else {
-            // 未决定，请求权限
-            console.log('[DeviceID] 权限未决定，请求权限');
-            await getDeviceId();
+            setError('Android设备获取到的广告ID无效或被用户禁用');
           }
-        } else {
-          // 非-iOS 平台直接获取
-          await getDeviceId();
+        } catch (e) {
+          setError(`Android设备无法获取广告ID: ${e instanceof Error ? e.message : '未知错误'}`);
         }
-      } catch (initError) {
-        console.error('[DeviceID] 初始化失败:', initError);
-        setError(`初始化失败: ${initError instanceof Error ? initError.message : '未知错误'}`);
+        setIsLoading(false);
+        return;
+      }
+
+      // iOS specific logic
+      if (!TrackingTransparency.isAvailable()) {
+        setError('当前设备不支持广告跟踪功能');
+        setPermissionStatus('not_applicable');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
+        console.log('[DeviceID] Initial permission status:', status);
+        setPermissionStatus(status);
+
+        if (status === 'granted') {
+          await getAdvertisingId();
+        } else {
+          // For 'denied' or 'undetermined', we do nothing.
+          // The UI will show the pre-prompt for 'undetermined' or a message for 'denied'.
+          setIsLoading(false);
+        }
+      } catch (e) {
+        console.error('[DeviceID] Error checking initial status:', e);
+        setError(`检查初始权限状态失败: ${e instanceof Error ? e.message : '未知错误'}`);
         setIsLoading(false);
       }
     };
 
-    initializePermissions();
+    checkInitialStatus();
   }, []);
 
   return {

@@ -1,6 +1,5 @@
-import { StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import { useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
+import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -11,7 +10,6 @@ export default function HomeScreen() {
   const { deviceId, isLoading, error, platform, permissionStatus, requestPermission } = useDeviceId();
   const buttonColor = useThemeColor({}, 'tint');
   const buttonTextColor = useThemeColor({ light: '#FFFFFF', dark: '#FFFFFF' }, 'background');
-  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
 
   const handleCopyToClipboard = async () => {
     if (deviceId) {
@@ -23,38 +21,26 @@ export default function HomeScreen() {
 
   const getTitle = () => {
     if (platform === 'ios') return 'IDFA:';
-    return 'GAID:';
+    if (platform === 'android') return 'GAID:';
+    return '设备ID:';
   };
 
-  const handleRequestPermission = async () => {
-    try {
-      setIsRequestingPermission(true);
-      await requestPermission();
-    } catch (err) {
-      console.error('请求权限失败:', err);
-    } finally {
-      setIsRequestingPermission(false);
-    }
-  };
-
-  return (
-    <ThemedView style={styles.container}>
-      {isLoading || isRequestingPermission ? (
+  const renderContent = () => {
+    if (isLoading) {
+      return (
         <ThemedView style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
-          <ThemedText style={styles.loadingText}>
-            {isRequestingPermission ? '请求权限中...' : '正在获取设备ID...'}
-          </ThemedText>
+          <ThemedText style={styles.loadingText}>正在获取设备信息...</ThemedText>
         </ThemedView>
-      ) : deviceId ? (
+      );
+    }
+
+    if (deviceId) {
+      return (
         <ThemedView style={styles.successContainer}>
-          <ThemedText type="subtitle" style={styles.title}>
-            {getTitle()}
-          </ThemedText>
-          <ThemedText style={styles.deviceIdText} selectable>
-            {deviceId}
-          </ThemedText>
-          <TouchableOpacity 
+          <ThemedText type="subtitle" style={styles.title}>{getTitle()}</ThemedText>
+          <ThemedText style={styles.deviceIdText} selectable>{deviceId}</ThemedText>
+          <TouchableOpacity
             style={[styles.copyButton, { backgroundColor: buttonColor }]}
             onPress={handleCopyToClipboard}
             activeOpacity={0.7}
@@ -62,57 +48,64 @@ export default function HomeScreen() {
             <ThemedText style={[styles.copyButtonText, { color: buttonTextColor }]}>复制</ThemedText>
           </TouchableOpacity>
         </ThemedView>
-      ) : permissionStatus === 'denied' && platform === 'ios' ? (
-        <ThemedView style={styles.permissionContainer}>
-          <ThemedText type="subtitle" style={styles.title}>
-            IDFA:
-          </ThemedText>
-          <ThemedText style={styles.permissionText}>
-            需要在设置中手动开启跟踪权限
-          </ThemedText>
-          <ThemedText style={styles.instructionText}>
-            请打开 设置 → 隐私与安全 → 跟踪 → 开启本应用的跟踪权限
-          </ThemedText>
-          <TouchableOpacity 
-            style={[styles.permissionButton, { backgroundColor: buttonColor }]}
-            onPress={handleRequestPermission}
-            activeOpacity={0.7}
-            disabled={isRequestingPermission}
-          >
-            <ThemedText style={[styles.permissionButtonText, { color: buttonTextColor }]}>
-              重试获取
-            </ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
-      ) : error ? (
-        <ThemedView style={styles.errorContainer}>
-          <ThemedText type="subtitle" style={styles.title}>
-            {getTitle()}
-          </ThemedText>
-          <ThemedText style={styles.errorText}>{error}</ThemedText>
-          {platform === 'ios' && permissionStatus === 'denied' && (
-            <TouchableOpacity 
-              style={[styles.retryButton, { backgroundColor: buttonColor }]}
-              onPress={handleRequestPermission}
-              activeOpacity={0.7}
-              disabled={isRequestingPermission}
-            >
-              <ThemedText style={[styles.retryButtonText, { color: buttonTextColor }]}>
-                重新授权
+      );
+    }
+
+    if (platform === 'ios') {
+      switch (permissionStatus) {
+        case 'undetermined':
+          return (
+            <ThemedView style={styles.permissionContainer}>
+              <ThemedText type="subtitle" style={styles.title}>需要您的许可</ThemedText>
+              <ThemedText style={styles.permissionText}>
+                为了帮助我们改进服务和提供更相关的内容，我们希望能获取您设备的广告标识符 (IDFA)。
               </ThemedText>
-            </TouchableOpacity>
-          )}
-          {error.includes('模拟器') && (
-            <ThemedText style={styles.simulatorHint}>
-              📱 请在真实的iOS设备上测试以获取真实的IDFA
-            </ThemedText>
-          )}
-        </ThemedView>
-      ) : (
+              <ThemedText style={styles.instructionText}>
+                我们承诺将严格保护您的隐私数据。点击“继续”将弹出系统权限请求。
+              </ThemedText>
+              <TouchableOpacity
+                style={[styles.permissionButton, { backgroundColor: buttonColor }]}
+                onPress={requestPermission}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={[styles.permissionButtonText, { color: buttonTextColor }]}>继续</ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
+          );
+        case 'denied':
+          return (
+            <ThemedView style={styles.errorContainer}>
+              <ThemedText type="subtitle" style={styles.title}>IDFA 不可用</ThemedText>
+              <ThemedText style={styles.errorText}>
+                您已拒绝跟踪权限。IDFA无法获取。您仍然可以正常使用本应用。
+              </ThemedText>
+              <ThemedText style={styles.instructionText}>
+                如需更改，请前往“设置”→“隐私与安全”→“跟踪”中允许本应用跟踪。
+              </ThemedText>
+            </ThemedView>
+          );
+      }
+    }
+
+    if (error) {
+      return (
         <ThemedView style={styles.errorContainer}>
-          <ThemedText style={styles.errorText}>未获取到设备ID</ThemedText>
+          <ThemedText type="subtitle" style={styles.title}>出现错误</ThemedText>
+          <ThemedText style={styles.errorText}>{error}</ThemedText>
         </ThemedView>
-      )}
+      );
+    }
+
+    return (
+      <ThemedView style={styles.errorContainer}>
+        <ThemedText style={styles.errorText}>未能获取设备ID。</ThemedText>
+      </ThemedView>
+    );
+  };
+
+  return (
+    <ThemedView style={styles.container}>
+      {renderContent()}
     </ThemedView>
   );
 }

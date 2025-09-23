@@ -12,7 +12,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 export default function HomeScreen() {
   const { idfa, idfv, isLoading, permissionStatus, requestPermission } = useDeviceId();
   const [userAgent, setUserAgent] = useState<string | null>(null);
-  const [showWebView, setShowWebView] = useState(true);
+  const [showWebView, setShowWebView] = useState(false);
   const [ipAddress, setIpAddress] = useState<string | null>(null);
   const [isLoadingIp, setIsLoadingIp] = useState(false);
   const buttonColor = useThemeColor({}, 'tint');

@@ -85,7 +85,7 @@ export default function HomeScreen() {
         </ThemedText>
       )}
       {onPress && !showButton && (
-        <ThemedText style={[styles.accessoryText, { color: secondaryTextColor }]}>拷贝</ThemedText>
+        <ThemedText style={[styles.accessoryText, { color: secondaryTextColor }]}>Copy</ThemedText>
       )}
     </TouchableOpacity>
   );

@@ -1,5 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
-import { ActivityIndicator, Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { PermissionStatus } from 'expo-tracking-transparency';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,105 +10,208 @@ import { useDeviceId } from '@/hooks/useDeviceId';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function HomeScreen() {
-  const { deviceId, isLoading, error, platform, permissionStatus, requestPermission } = useDeviceId();
+  const { idfa, idfv, isLoading, permissionStatus, requestPermission } = useDeviceId();
+  const [userAgent, setUserAgent] = useState<string | null>(null);
+  const [showWebView, setShowWebView] = useState(true);
+  const [ipAddress, setIpAddress] = useState<string | null>(null);
+  const [isLoadingIp, setIsLoadingIp] = useState(false);
   const buttonColor = useThemeColor({}, 'tint');
-  const buttonTextColor = useThemeColor({ light: '#FFFFFF', dark: '#FFFFFF' }, 'background');
+  const backgroundColor = useThemeColor({ light: '#f2f2f7', dark: '#000000' }, 'background');
+  const cardColor = useThemeColor({ light: '#ffffff', dark: '#1c1c1e' }, 'background');
+  const secondaryTextColor = useThemeColor({ light: '#6d6d70', dark: '#8e8e93' }, 'text');
+  const primaryTextColor = useThemeColor({ light: '#000000', dark: '#ffffff' }, 'text');
+  const separatorColor = useThemeColor({ light: '#c6c6c8', dark: '#38383a' }, 'text');
 
-  const handleCopyToClipboard = async () => {
-    if (deviceId) {
-      await Clipboard.setStringAsync(deviceId);
-      const idType = platform === 'ios' ? 'IDFA' : 'GAID';
-      Alert.alert('复制成功', `${idType} 已复制到剪贴板`);
+  const handleCopyToClipboard = async (text: string | null) => {
+    if (text) {
+      await Clipboard.setStringAsync(text);
+      Alert.alert('已复制', text, [{ text: '好的', style: 'default' }]);
     }
   };
 
-  const getTitle = () => {
-    if (platform === 'ios') return 'IDFA:';
-    if (platform === 'android') return 'GAID:';
-    return '设备ID:';
+  const getIpAddress = async () => {
+    setIsLoadingIp(true);
+    try {
+      const response = await fetch('https://api.ipify.org/');
+      const ip = await response.text();
+      setIpAddress(ip);
+    } catch (error) {
+      Alert.alert('获取失败', '无法获取IP地址', [{ text: '好的', style: 'default' }]);
+    } finally {
+      setIsLoadingIp(false);
+    }
   };
 
-  const renderContent = () => {
-    if (isLoading) {
+  const SettingsGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <View style={styles.settingsGroup}>
+      <ThemedText style={[styles.groupTitle, { color: secondaryTextColor }]}>{title.toUpperCase()}</ThemedText>
+      <View style={[styles.groupContainer, { backgroundColor: cardColor }]}>
+        {children}
+      </View>
+    </View>
+  );
+
+  const SettingsRow = ({ 
+    value, 
+    onPress, 
+    showButton = false, 
+    buttonTitle = "获取授权",
+    isLast = false 
+  }: { 
+    value: string | null; 
+    onPress?: () => void;
+    showButton?: boolean;
+    buttonTitle?: string;
+    isLast?: boolean;
+  }) => (
+    <TouchableOpacity 
+      style={[
+        styles.settingsRow, 
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: separatorColor }
+      ]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
+      {showButton ? (
+        <ThemedText style={[styles.buttonText, { color: buttonColor }]}>{buttonTitle}</ThemedText>
+      ) : (
+        <ThemedText 
+          style={[styles.valueText, { color: primaryTextColor }]} 
+          selectable
+          numberOfLines={0}
+        >
+          {value || '暂无数据'}
+        </ThemedText>
+      )}
+      {onPress && !showButton && (
+        <ThemedText style={[styles.accessoryText, { color: secondaryTextColor }]}>拷贝</ThemedText>
+      )}
+    </TouchableOpacity>
+  );
+
+  const renderIdfaRow = () => {
+    if (permissionStatus === PermissionStatus.GRANTED && idfa) {
       return (
-        <ThemedView style={styles.loadingContainer}>
-          <ActivityIndicator size="large" />
-          <ThemedText style={styles.loadingText}>正在获取设备信息...</ThemedText>
-        </ThemedView>
+        <SettingsRow
+          value={idfa}
+          onPress={() => handleCopyToClipboard(idfa)}
+          isLast={true}
+        />
       );
     }
-
-    if (deviceId) {
+    
+    if (permissionStatus === PermissionStatus.DENIED) {
       return (
-        <ThemedView style={styles.successContainer}>
-          <ThemedText type="subtitle" style={styles.title}>{getTitle()}</ThemedText>
-          <ThemedText style={styles.deviceIdText} selectable>{deviceId}</ThemedText>
-          <TouchableOpacity
-            style={[styles.copyButton, { backgroundColor: buttonColor }]}
-            onPress={handleCopyToClipboard}
-            activeOpacity={0.7}
-          >
-            <ThemedText style={[styles.copyButtonText, { color: buttonTextColor }]}>复制</ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
+        <SettingsRow
+          value="权限被拒绝"
+          isLast={true}
+        />
       );
     }
-
-    if (platform === 'ios') {
-      switch (permissionStatus) {
-        case 'undetermined':
-          return (
-            <ThemedView style={styles.permissionContainer}>
-              <ThemedText type="subtitle" style={styles.title}>需要您的许可</ThemedText>
-              <ThemedText style={styles.permissionText}>
-                为了帮助我们改进服务和提供更相关的内容，我们希望能获取您设备的广告标识符 (IDFA)。
-              </ThemedText>
-              <ThemedText style={styles.instructionText}>
-                我们承诺将严格保护您的隐私数据。点击“继续”将弹出系统权限请求。
-              </ThemedText>
-              <TouchableOpacity
-                style={[styles.permissionButton, { backgroundColor: buttonColor }]}
-                onPress={requestPermission}
-                activeOpacity={0.7}
-              >
-                <ThemedText style={[styles.permissionButtonText, { color: buttonTextColor }]}>继续</ThemedText>
-              </TouchableOpacity>
-            </ThemedView>
-          );
-        case 'denied':
-          return (
-            <ThemedView style={styles.errorContainer}>
-              <ThemedText type="subtitle" style={styles.title}>IDFA 不可用</ThemedText>
-              <ThemedText style={styles.errorText}>
-                您已拒绝跟踪权限。IDFA无法获取。您仍然可以正常使用本应用。
-              </ThemedText>
-              <ThemedText style={styles.instructionText}>
-                如需更改，请前往“设置”→“隐私与安全”→“跟踪”中允许本应用跟踪。
-              </ThemedText>
-            </ThemedView>
-          );
-      }
-    }
-
-    if (error) {
-      return (
-        <ThemedView style={styles.errorContainer}>
-          <ThemedText type="subtitle" style={styles.title}>出现错误</ThemedText>
-          <ThemedText style={styles.errorText}>{error}</ThemedText>
-        </ThemedView>
-      );
-    }
-
+    
     return (
-      <ThemedView style={styles.errorContainer}>
-        <ThemedText style={styles.errorText}>未能获取设备ID。</ThemedText>
-      </ThemedView>
+      <SettingsRow
+        value=""
+        showButton={true}
+        buttonTitle="Click Get IDFA"
+        onPress={requestPermission}
+        isLast={true}
+      />
     );
   };
 
+  const renderIpRow = () => {
+    if (ipAddress) {
+      return (
+        <SettingsRow
+          value={ipAddress}
+          onPress={() => handleCopyToClipboard(ipAddress)}
+          isLast={true}
+        />
+      );
+    }
+    
+    return (
+      <SettingsRow
+        value=""
+        showButton={true}
+        buttonTitle={isLoadingIp ? "获取中..." : "Click Get IP"}
+        onPress={isLoadingIp ? undefined : getIpAddress}
+        isLast={true}
+      />
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <ThemedView style={[styles.container, { backgroundColor }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={buttonColor} />
+          <ThemedText style={[styles.loadingText, { color: secondaryTextColor }]}>
+            正在获取设备信息...
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  const webViewHtml = `
+    <html>
+      <head><title>UserAgent</title></head>
+      <body>
+        <script>
+          window.ReactNativeWebView.postMessage(navigator.userAgent);
+        </script>
+      </body>
+    </html>
+  `;
+
+  const handleWebViewMessage = (event: any) => {
+    const realUserAgent = event.nativeEvent.data;
+    if (realUserAgent) {
+      setUserAgent(realUserAgent);
+      setShowWebView(false); // 获取到UserAgent后立即隐藏WebView
+    }
+  };
+
   return (
-    <ThemedView style={styles.container}>
-      {renderContent()}
+    <ThemedView style={[styles.container, { backgroundColor }]}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <SettingsGroup title="IDFA">
+          {renderIdfaRow()}
+        </SettingsGroup>
+
+        <SettingsGroup title="IDFV">
+          <SettingsRow
+            value={idfv}
+            onPress={() => handleCopyToClipboard(idfv)}
+            isLast={true}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="UserAgent">
+          <SettingsRow
+            value={userAgent}
+            onPress={() => handleCopyToClipboard(userAgent)}
+            isLast={true}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="IP">
+          {renderIpRow()}
+        </SettingsGroup>
+      </ScrollView>
+      
+      {/* WebView放在最后，作为不可见节点，避免影响页面渲染和布局 */}
+      {showWebView && (
+        <WebView
+          source={{ html: webViewHtml }}
+          style={{ height: 0, width: 0, position: 'absolute', left: -1000, top: -1000, opacity: 0 }}
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled={true}
+        />
+      )}
     </ThemedView>
   );
 }
@@ -113,120 +219,56 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  settingsGroup: {
+    marginTop: 35,
+  },
+  groupTitle: {
+    fontSize: 13,
+    fontWeight: '400',
+    marginLeft: 16,
+    marginBottom: 6,
+    letterSpacing: -0.08,
+  },
+  groupContainer: {
+    marginHorizontal: 16,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  settingsRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+  },
+  valueText: {
+    fontSize: 17,
+    fontFamily: Platform.OS === 'ios' ? 'SF Mono' : 'monospace',
+    flex: 1,
+    lineHeight: 22,
+  },
+  buttonText: {
+    fontSize: 17,
+    fontWeight: '400',
+  },
+  accessoryText: {
+    fontSize: 17,
+    fontWeight: '400',
+    marginLeft: 16,
   },
   loadingContainer: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    fontStyle: 'italic',
-  },
-  errorContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#d32f2f',
-    textAlign: 'center',
-  },
-  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
-    paddingHorizontal: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  deviceIdText: {
-    fontSize: 16,
-    fontFamily: 'monospace',
+  loadingText: {
+    fontSize: 17,
     fontWeight: '400',
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 10,
-  },
-  copyButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  copyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  permissionContainer: {
-    alignItems: 'center',
-    gap: 20,
-    paddingHorizontal: 20,
-  },
-  permissionText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    opacity: 0.8,
-    marginBottom: 8,
-  },
-  instructionText: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    opacity: 0.6,
-    fontStyle: 'italic',
-    marginBottom: 8,
-  },
-  permissionButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  permissionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  retryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 6,
-    marginTop: 16,
-  },
-  retryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  simulatorHint: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginTop: 16,
-    opacity: 0.7,
-    lineHeight: 20,
   },
 });

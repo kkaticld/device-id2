@@ -16,10 +16,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     // Initialize LogRocket (only works in built apps, not in Expo dev server)
+    console.log('[LogRocket] 开始初始化...');
     try {
       LogRocket.init('eyptgk/device-id2');
+      console.log('[LogRocket] ✅ 初始化成功');
     } catch (error) {
-      console.log('LogRocket not available in development mode');
+      console.log('[LogRocket] ❌ 初始化失败 (开发模式):', error);
     }
   }, []);
 
@@ -31,10 +33,10 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </ThemeProvider>
   );
 }

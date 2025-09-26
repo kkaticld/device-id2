@@ -59,7 +59,7 @@ export default function HomeScreen() {
       
       // LogRocket事件追踪
       safeLogRocketTrack('Copy to Clipboard', {
-        contentType: text.includes('idfa') ? 'IDFA' :
+        contentType: text.includes('idfa') ? 'IDFA' : 
                     text.includes('idfv') ? 'IDFV' :
                     text.includes('Mozilla') ? 'UserAgent' :
                     text.match(/^\d+\.\d+\.\d+\.\d+$/) ? 'IP Address' : 'Unknown',
@@ -74,7 +74,7 @@ export default function HomeScreen() {
   const handleShare = async () => {
     const deviceInfo = {
       IDFA: idfa || '未获取',
-      IDFV: idfv || '未获取',
+      IDFV: idfv || '未获取', 
       UserAgent: userAgent || '未获取',
       IPAddress: ipAddress || '未获取',
       Platform: Platform.OS,
@@ -150,29 +150,31 @@ export default function HomeScreen() {
     value, 
     onPress, 
     showButton = false, 
-    buttonTitle = "获取授权",
+    buttonTitle = "", 
     isLast = false 
   }: { 
     value: string | null; 
-    onPress?: () => void;
-    showButton?: boolean;
-    buttonTitle?: string;
-    isLast?: boolean;
+    onPress?: () => void; 
+    showButton?: boolean; 
+    buttonTitle?: string; 
+    isLast?: boolean; 
   }) => (
     <TouchableOpacity 
       style={[
         styles.settingsRow, 
-        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: separatorColor }
+        { backgroundColor: cardColor, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth, borderBottomColor: separatorColor }
       ]}
       onPress={onPress}
       disabled={!onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
       {showButton ? (
-        <ThemedText style={[styles.buttonText, { color: buttonColor }]}>{buttonTitle}</ThemedText>
+        <ThemedText style={[styles.buttonText, { color: buttonColor }]}>
+          {buttonTitle}
+        </ThemedText>
       ) : (
         <ThemedText 
-          style={[styles.valueText, { color: primaryTextColor }]} 
+          style={[styles.valueText, { color: primaryTextColor }]}
           selectable
           numberOfLines={0}
         >
@@ -297,9 +299,9 @@ export default function HomeScreen() {
       setUserAgent(realUserAgent);
       setShowWebView(false); // 获取到UserAgent后立即隐藏WebView
       
-      safeLogRocketTrack('Get UserAgent Success', {
+      safeLogRocketTrack('Get UserAgent Success', { 
         userAgent: realUserAgent,
-        platform: Platform.OS
+        platform: Platform.OS 
       });
     }
   };
@@ -350,7 +352,7 @@ export default function HomeScreen() {
       
       {/* 底部工具栏 */}
       <View style={styles.toolbar}>
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.shareButton}
           onPress={handleShare}
           activeOpacity={0.7}

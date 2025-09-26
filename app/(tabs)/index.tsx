@@ -1,6 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { PermissionStatus } from 'expo-tracking-transparency';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -22,25 +22,62 @@ export default function HomeScreen() {
   const primaryTextColor = useThemeColor({ light: '#000000', dark: '#ffffff' }, 'text');
   const separatorColor = useThemeColor({ light: '#c6c6c8', dark: '#38383a' }, 'text');
 
+  // 安全的LogRocket追踪函数
+  const safeLogRocketTrack = (eventName: string, properties?: Record<string, any>) => {
+    try {
+      safeLogRocketTrack(eventName, properties);
+    } catch (error) {
+      console.log(`LogRocket track failed (dev mode): ${eventName}`);
+    }
+  };
+
   const handleCopyToClipboard = async (text: string | null) => {
     if (text) {
       await Clipboard.setStringAsync(text);
+      
+      // LogRocket事件追踪
+      safeLogRocketTrack('Copy to Clipboard', {
+        contentType: text.includes('idfa') ? 'IDFA' :
+                    text.includes('idfv') ? 'IDFV' :
+                    text.includes('Mozilla') ? 'UserAgent' :
+                    text.match(/^\d+\.\d+\.\d+\.\d+$/) ? 'IP Address' : 'Unknown',
+        contentLength: text.length
+      });
+      
       Alert.alert('已复制', text, [{ text: '好的', style: 'default' }]);
     }
   };
 
   const getIpAddress = async () => {
     setIsLoadingIp(true);
+    safeLogRocketTrack('Get IP Address Started');
+    
     try {
       const response = await fetch('https://api.ipify.org/');
       const ip = await response.text();
       setIpAddress(ip);
+      
+      safeLogRocketTrack('Get IP Address Success', { ipAddress: ip });
     } catch (error) {
+      safeLogRocketTrack('Get IP Address Failed', { error: String(error) });
       Alert.alert('获取失败', '无法获取IP地址', [{ text: '好的', style: 'default' }]);
     } finally {
       setIsLoadingIp(false);
     }
   };
+
+  const getUserAgent = () => {
+    safeLogRocketTrack('Get UserAgent Started');
+    setShowWebView(true);
+  };
+
+  // 应用启动时的LogRocket事件
+  useEffect(() => {
+    safeLogRocketTrack('App Started', {
+      platform: Platform.OS,
+      version: Platform.Version
+    });
+  }, []);
 
   const SettingsGroup = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View style={styles.settingsGroup}>
@@ -104,7 +141,13 @@ export default function HomeScreen() {
     if (permissionStatus === PermissionStatus.DENIED) {
       return (
         <SettingsRow
-          value="权限被拒绝"
+          value=""
+          showButton={true}
+          buttonTitle="Go to Settings"
+          onPress={() => {
+            safeLogRocketTrack('IDFA Permission Denied - Settings Prompt');
+            Alert.alert('权限被拒绝', '请到设置中开启跟踪权限', [{ text: '好的', style: 'default' }]);
+          }}
           isLast={true}
         />
       );
@@ -115,7 +158,32 @@ export default function HomeScreen() {
         value=""
         showButton={true}
         buttonTitle="Click Get IDFA"
-        onPress={requestPermission}
+        onPress={() => {
+          safeLogRocketTrack('IDFA Permission Request Started');
+          requestPermission();
+        }}
+        isLast={true}
+      />
+    );
+  };
+
+  const renderUserAgentRow = () => {
+    if (userAgent) {
+      return (
+        <SettingsRow
+          value={userAgent}
+          onPress={() => handleCopyToClipboard(userAgent)}
+          isLast={true}
+        />
+      );
+    }
+    
+    return (
+      <SettingsRow
+        value=""
+        showButton={true}
+        buttonTitle="Click Get UserAgent"
+        onPress={getUserAgent}
         isLast={true}
       />
     );
@@ -172,6 +240,11 @@ export default function HomeScreen() {
     if (realUserAgent) {
       setUserAgent(realUserAgent);
       setShowWebView(false); // 获取到UserAgent后立即隐藏WebView
+      
+      safeLogRocketTrack('Get UserAgent Success', {
+        userAgent: realUserAgent,
+        platform: Platform.OS
+      });
     }
   };
 
@@ -191,11 +264,7 @@ export default function HomeScreen() {
         </SettingsGroup>
 
         <SettingsGroup title="UserAgent">
-          <SettingsRow
-            value={userAgent}
-            onPress={() => handleCopyToClipboard(userAgent)}
-            isLast={true}
-          />
+          {renderUserAgentRow()}
         </SettingsGroup>
 
         <SettingsGroup title="IP">
@@ -203,15 +272,17 @@ export default function HomeScreen() {
         </SettingsGroup>
       </ScrollView>
       
-      {/* WebView放在最后，作为不可见节点，避免影响页面渲染和布局 */}
-      {showWebView && (
-        <WebView
-          source={{ html: webViewHtml }}
-          style={{ height: 0, width: 0, position: 'absolute', left: -1000, top: -1000, opacity: 0 }}
-          onMessage={handleWebViewMessage}
-          javaScriptEnabled={true}
-        />
-      )}
+      {/* WebView放在完全隐藏的容器中，完全不影响布局 */}
+      <View style={styles.hiddenContainer}>
+        {showWebView && (
+          <WebView
+            source={{ html: webViewHtml }}
+            style={styles.hiddenWebView}
+            onMessage={handleWebViewMessage}
+            javaScriptEnabled={true}
+          />
+        )}
+      </View>
     </ThemedView>
   );
 }
@@ -270,5 +341,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 17,
     fontWeight: '400',
+  },
+  hiddenContainer: {
+    position: 'absolute',
+    top: -10000,
+    left: -10000,
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
+    opacity: 0,
+  },
+  hiddenWebView: {
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
 });

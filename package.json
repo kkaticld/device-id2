@@ -1,7 +1,7 @@
 {
   "name": "device-id2",
   "main": "expo-router/entry",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@logrocket/react-native": "^1.57.2",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
@@ -19,6 +20,7 @@
     "expo": "~53.0.22",
     "expo-application": "^6.1.5",
     "expo-blur": "~14.1.5",
+    "expo-build-properties": "~0.14.8",
     "expo-clipboard": "^7.1.5",
     "expo-constants": "~17.1.7",
     "expo-font": "~13.3.2",
@@ -34,7 +36,7 @@
     "expo-web-browser": "~14.2.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "react-native": "0.79.6",
+    "react-native": "0.79.5",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",

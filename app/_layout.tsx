@@ -1,7 +1,9 @@
+import LogRocket from '@logrocket/react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -11,6 +13,15 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  useEffect(() => {
+    // Initialize LogRocket (only works in built apps, not in Expo dev server)
+    try {
+      LogRocket.init('eyptgk/device-id2');
+    } catch (error) {
+      console.log('LogRocket not available in development mode');
+    }
+  }, []);
 
   if (!loaded) {
     // Async font loading only occurs in development.

@@ -9,8 +9,10 @@ import { WebView } from 'react-native-webview';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useDeviceId } from '@/hooks/useDeviceId';
+import { useI18n } from '../utils/i18n';
 
 export default function HomeScreen() {
+  const { t } = useI18n();
   const { idfa, idfv, isLoading, permissionStatus, requestPermission } = useDeviceId();
   const [userAgent, setUserAgent] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
@@ -66,22 +68,22 @@ export default function HomeScreen() {
         contentLength: text.length
       });
       
-      Alert.alert('已复制', text, [{ text: '好的', style: 'default' }]);
+      Alert.alert(t.copied, text, [{ text: t.ok, style: 'default' }]);
     }
   };
 
   // 分享功能
   const handleShare = async () => {
     const deviceInfo = {
-      IDFA: idfa || '未获取',
-      IDFV: idfv || '未获取', 
-      UserAgent: userAgent || '未获取',
-      IPAddress: ipAddress || '未获取',
+      IDFA: idfa || t.shareContent.notObtained,
+      IDFV: idfv || t.shareContent.notObtained,
+      UserAgent: userAgent || t.shareContent.notObtained,
+      IPAddress: ipAddress || t.shareContent.notObtained,
       Platform: Platform.OS,
       Timestamp: new Date().toLocaleString()
     };
 
-    const shareText = `设备信息：\n\nIDFA: ${deviceInfo.IDFA}\nIDFV: ${deviceInfo.IDFV}\nUserAgent: ${deviceInfo.UserAgent}\nIP地址: ${deviceInfo.IPAddress}\n平台: ${deviceInfo.Platform}\n时间: ${deviceInfo.Timestamp}`;
+    const shareText = `${t.shareContent.title}\n\n${t.shareContent.idfa}: ${deviceInfo.IDFA}\n${t.shareContent.idfv}: ${deviceInfo.IDFV}\n${t.shareContent.userAgent}: ${deviceInfo.UserAgent}\n${t.shareContent.ipAddress}: ${deviceInfo.IPAddress}\n${t.shareContent.platform}: ${deviceInfo.Platform}\n${t.shareContent.timestamp}: ${deviceInfo.Timestamp}`;
 
     try {
       safeLogRocketTrack('Share Device Info Started');
@@ -91,18 +93,18 @@ export default function HomeScreen() {
         const fileName = `device_info_${Date.now()}.txt`;
         await Sharing.shareAsync(shareText, {
           mimeType: 'text/plain',
-          dialogTitle: '分享设备信息'
+          dialogTitle: t.shareTitle
         });
         safeLogRocketTrack('Share Device Info Success');
       } else {
         // 降级到复制到剪贴板
         await Clipboard.setStringAsync(shareText);
-        Alert.alert('已复制到剪贴板', '设备信息已复制，您可以粘贴到其他应用', [{ text: '好的', style: 'default' }]);
+        Alert.alert(t.copiedToClipboard, t.canPasteToOtherApps, [{ text: t.ok, style: 'default' }]);
         safeLogRocketTrack('Share Device Info Fallback to Clipboard');
       }
     } catch (error) {
       safeLogRocketTrack('Share Device Info Failed', { error: String(error) });
-      Alert.alert('分享失败', '请稍后重试', [{ text: '好的', style: 'default' }]);
+      Alert.alert(t.shareFailed, t.retryLater, [{ text: t.ok, style: 'default' }]);
     }
   };
 
@@ -178,7 +180,7 @@ export default function HomeScreen() {
           selectable
           numberOfLines={0}
         >
-          {value || '暂无数据'}
+          {value || '{t.noData}'}
         </ThemedText>
       )}
       {/* Copy按钮已隐藏，但保留复制功能 */}
@@ -201,7 +203,7 @@ export default function HomeScreen() {
         <SettingsRow
           value=""
           showButton={true}
-          buttonTitle="Go to Settings"
+          buttonTitle="{t.goToSettings}"
           onPress={() => {
             safeLogRocketTrack('IDFA Permission Denied - Settings Prompt');
             Alert.alert('权限被拒绝', '请到设置中开启跟踪权限', [{ text: '好的', style: 'default' }]);
@@ -215,7 +217,7 @@ export default function HomeScreen() {
       <SettingsRow
         value=""
         showButton={true}
-        buttonTitle="Click Get IDFA"
+        buttonTitle="{t.clickGetIdfa}"
         onPress={() => {
           safeLogRocketTrack('IDFA Permission Request Started');
           requestPermission();
@@ -240,7 +242,7 @@ export default function HomeScreen() {
       <SettingsRow
         value=""
         showButton={true}
-        buttonTitle="Click Get UserAgent"
+        buttonTitle="{t.clickGetUserAgent}"
         onPress={getUserAgent}
         isLast={true}
       />
@@ -262,7 +264,7 @@ export default function HomeScreen() {
       <SettingsRow
         value=""
         showButton={true}
-        buttonTitle={isLoadingIp ? "获取中..." : "Click Get IP"}
+        buttonTitle={isLoadingIp ? t.gettingIP : t.clickGetIP}
         onPress={isLoadingIp ? undefined : getIpAddress}
         isLast={true}
       />
@@ -275,7 +277,7 @@ export default function HomeScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={buttonColor} />
           <ThemedText style={[styles.loadingText, { color: secondaryTextColor }]}>
-            正在获取设备信息...
+            {t.gettingDeviceInfo}
           </ThemedText>
         </View>
       </ThemedView>
@@ -352,12 +354,14 @@ export default function HomeScreen() {
       
       {/* 底部工具栏 */}
       <View style={styles.toolbar}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.shareButton}
           onPress={handleShare}
           activeOpacity={0.7}
         >
-          <ThemedText style={{ fontSize: 24, color: colors.deepBlack }}>⤴️</ThemedText>
+          <ThemedText style={[styles.shareButtonText, { color: colors.deepBlack }]}>
+            Share
+          </ThemedText>
         </TouchableOpacity>
       </View>
       
@@ -461,8 +465,8 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     backgroundColor: '#9ACD32', // 牛油果绿
-    borderRadius: 25,
-    paddingVertical: 15,
+    borderRadius: 10, // iOS系统按钮圆角规格
+    paddingVertical: 8, // 减半高度
     paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -472,8 +476,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOpacity: 0.1,
     elevation: 5,
+    height: 44, // iOS标准按钮高度
   },
   shareButton: {
-    padding: 8,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
   },
 });

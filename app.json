@@ -2,7 +2,7 @@
   "expo": {
     "name": "device-id2",
     "slug": "device-id2",
-    "version": "1.0.8",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "deviceid2",
@@ -53,7 +53,8 @@
           }
         }
       ],
-      "@logrocket/react-native"
+      "@logrocket/react-native",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

@@ -4,34 +4,54 @@ import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 interface DeviceInfo {
-  idfa: string | null;
+  advertisingId: string | null;
   idfv: string | null;
+  androidId: string | null;
+  applicationId: string | null;
+  nativeVersion: string | null;
+  nativeBuildVersion: string | null;
   isLoading: boolean;
   permissionStatus: TrackingTransparency.PermissionStatus | null;
   requestPermission: () => Promise<void>;
 }
 
 export function useDeviceId(): DeviceInfo {
-  const [idfa, setIdfa] = useState<string | null>(null);
+  const [advertisingId, setAdvertisingId] = useState<string | null>(null);
   const [idfv, setIdfv] = useState<string | null>(null);
+  const [androidId, setAndroidId] = useState<string | null>(null);
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [nativeVersion, setNativeVersion] = useState<string | null>(null);
+  const [nativeBuildVersion, setNativeBuildVersion] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [permissionStatus, setPermissionStatus] = useState<TrackingTransparency.PermissionStatus | null>(null);
 
   const getIds = useCallback(async () => {
     setIsLoading(true);
-    // Fetch IDFV unconditionally on iOS
+    
+    // Get Application Info (cross-platform)
+    setApplicationId(Application.applicationId);
+    setNativeVersion(Application.nativeApplicationVersion);
+    setNativeBuildVersion(Application.nativeBuildVersion);
+    
+    // Platform-specific IDs
     if (Platform.OS === 'ios') {
+      // iOS: Get IDFV
       const vendorId = await Application.getIosIdForVendorAsync();
       setIdfv(vendorId);
+    } else if (Platform.OS === 'android') {
+      // Android: Get Android ID
+      const deviceId = Application.getAndroidId();
+      setAndroidId(deviceId);
     }
 
-    // Check and fetch IDFA if permission is already granted
+    // Get Advertising ID (IDFA on iOS, GAID on Android)
     const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
     setPermissionStatus(status);
     if (status === TrackingTransparency.PermissionStatus.GRANTED) {
-      const idfa = TrackingTransparency.getAdvertisingId();
-      setIdfa(idfa);
+      const adId = TrackingTransparency.getAdvertisingId();
+      setAdvertisingId(adId);
     }
+    
     setIsLoading(false);
   }, []);
 
@@ -44,11 +64,21 @@ export function useDeviceId(): DeviceInfo {
     const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
     setPermissionStatus(status);
     if (status === TrackingTransparency.PermissionStatus.GRANTED) {
-      const idfa = TrackingTransparency.getAdvertisingId();
-      setIdfa(idfa);
+      const adId = TrackingTransparency.getAdvertisingId();
+      setAdvertisingId(adId);
     }
     setIsLoading(false);
   }, []);
 
-  return { idfa, idfv, isLoading, permissionStatus, requestPermission };
+  return { 
+    advertisingId, 
+    idfv, 
+    androidId,
+    applicationId,
+    nativeVersion,
+    nativeBuildVersion,
+    isLoading, 
+    permissionStatus, 
+    requestPermission 
+  };
 }

@@ -44,17 +44,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-tracking-transparency",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "minSdkVersion": 25
-          }
-        }
-      ],
-      "@logrocket/react-native",
-      "expo-localization"
+      "expo-tracking-transparency"
     ],
     "experiments": {
       "typedRoutes": true

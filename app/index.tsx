@@ -1,13 +1,15 @@
 import { PermissionStatus } from 'expo-tracking-transparency';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { useDeviceId } from '@/hooks/useDeviceId';
 
 export default function HomeScreen() {
-  const { 
-    advertisingId, 
+  const insets = useSafeAreaInsets();
+  const {
+    advertisingId,
     idfv, 
     androidId,
     applicationId,
@@ -198,7 +200,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <SettingsGroup title="Application ID">
           <SettingsRow

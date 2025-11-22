@@ -48,7 +48,7 @@ export function useDeviceId(): DeviceInfo {
     const { status } = await TrackingTransparency.getTrackingPermissionsAsync();
     setPermissionStatus(status);
     if (status === TrackingTransparency.PermissionStatus.GRANTED) {
-      const adId = TrackingTransparency.getAdvertisingId();
+      const adId = await TrackingTransparency.getAdvertisingId();
       setAdvertisingId(adId);
     }
     
@@ -64,7 +64,7 @@ export function useDeviceId(): DeviceInfo {
     const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
     setPermissionStatus(status);
     if (status === TrackingTransparency.PermissionStatus.GRANTED) {
-      const adId = TrackingTransparency.getAdvertisingId();
+      const adId = await TrackingTransparency.getAdvertisingId();
       setAdvertisingId(adId);
     }
     setIsLoading(false);

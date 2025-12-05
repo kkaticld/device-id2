@@ -1,5 +1,5 @@
 import { PermissionStatus } from 'expo-tracking-transparency';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ImageBackground, Image, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -9,13 +9,14 @@ import { BlurView } from 'expo-blur';
 
 import { useDeviceId } from '@/hooks/useDeviceId';
 
-// 随机图片服务
-const HERO_BG = { uri: 'https://picsum.photos/800/1000?random=1' };
-const APP_ICON_IMG = { uri: 'https://picsum.photos/200/200?random=2' };
-const FEATURE_IMG = { uri: 'https://picsum.photos/800/600?random=3' };
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  
+  // 使用 useMemo 确保图片 URL 在组件生命周期内保持不变
+  const HERO_BG = useMemo(() => ({ uri: `https://picsum.photos/800/1000?t=${Date.now()}` }), []);
+  const APP_ICON_IMG = useMemo(() => ({ uri: `https://picsum.photos/200/200?t=${Date.now() + 1}` }), []);
+  const FEATURE_IMG = useMemo(() => ({ uri: `https://picsum.photos/800/600?t=${Date.now() + 2}` }), []);
+  
   const { 
     advertisingId, 
     idfv, 
@@ -127,7 +128,10 @@ export default function HomeScreen() {
               {!hasPermission && (
                 <TouchableOpacity 
                   style={styles.heroButton}
-                  onPress={requestPermission}
+                  onPress={(e: any) => {
+                    e.stopPropagation();
+                    requestPermission();
+                  }}
                 >
                   <Text style={styles.heroButtonText}>获取权限</Text>
                 </TouchableOpacity>

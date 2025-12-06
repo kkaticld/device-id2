@@ -1,16 +1,42 @@
 import { PermissionStatus } from 'expo-tracking-transparency';
-import { useState, useMemo } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ImageBackground, Image, Share } from 'react-native';
+import { useState, useMemo, useEffect } from 'react';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ImageBackground, Image, Share, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as Sentry from '@sentry/react-native';
 
 import { useDeviceId } from '@/hooks/useDeviceId';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  
+  // Sentry: 页面加载追踪
+  useEffect(() => {
+    Sentry.addBreadcrumb({
+      category: 'navigation',
+      message: '进入首页',
+      level: 'info',
+    });
+  }, []);
+  
+  // Sentry: 应用状态追踪
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      Sentry.addBreadcrumb({
+        category: 'app_state',
+        message: `应用状态变化: ${nextAppState}`,
+        data: { state: nextAppState },
+        level: 'info',
+      });
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
   
   // 使用 useMemo 确保图片 URL 在组件生命周期内保持不变
   const HERO_BG = useMemo(() => ({ uri: `https://picsum.photos/800/1000?t=${Date.now()}` }), []);
@@ -26,8 +52,12 @@ export default function HomeScreen() {
     nativeBuildVersion,
     isLoading, 
     permissionStatus, 
-    requestPermission 
+    requestPermission,
+    debugInfo,
+    lastError,
   } = useDeviceId();
+  
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   
   const [userAgent, setUserAgent] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
@@ -64,6 +94,12 @@ export default function HomeScreen() {
 
   const handleShare = async () => {
     try {
+      Sentry.addBreadcrumb({
+        category: 'user_action',
+        message: '用户点击分享按钮',
+        level: 'info',
+      });
+      
       const deviceInfo = {
         'Application ID': applicationId,
         'App Version': nativeVersion,
@@ -84,7 +120,44 @@ export default function HomeScreen() {
       });
     } catch (error) {
       console.error('Share error:', error);
+      Sentry.captureException(error, {
+        tags: { feature: 'share' },
+      });
     }
+  };
+  
+  // 报告问题到 Sentry
+  const reportIssue = () => {
+    Sentry.addBreadcrumb({
+      category: 'user_action',
+      message: '用户点击报告问题按钮',
+      level: 'info',
+    });
+    
+    const eventId = Sentry.captureMessage('用户报告 IDFA 问题', {
+      level: 'info',
+      tags: {
+        feature: 'idfa',
+        user_reported: true,
+        platform: Platform.OS,
+      },
+      contexts: {
+        debug_info: {
+          logs: debugInfo.slice(-20), // 最后20条日志
+          permission_status: permissionStatus,
+          has_idfa: !!advertisingId,
+          has_idfv: !!idfv,
+          last_error: lastError,
+        },
+        device_state: {
+          app_version: nativeVersion,
+          build_version: nativeBuildVersion,
+          bundle_id: applicationId,
+        }
+      }
+    });
+    
+    showToast('问题已报告到 Sentry (ID: ' + eventId?.substring(0, 8) + ')');
   };
 
   // --- Components ---
@@ -270,6 +343,131 @@ export default function HomeScreen() {
           actionLabel="获取 IP"
           isLoading={isLoadingIp}
         />
+
+        {/* 调试面板 */}
+        <View style={[styles.cardContainer, styles.debugCard]}>
+          <TouchableOpacity 
+            style={styles.debugHeader} 
+            onPress={() => setShowDebugPanel(!showDebugPanel)}
+          >
+            <Text style={styles.debugTitle}>🔧 调试信息</Text>
+            <Text style={styles.debugToggle}>{showDebugPanel ? '收起 ▲' : '展开 ▼'}</Text>
+          </TouchableOpacity>
+          
+          {lastError && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>❌ 错误: {lastError}</Text>
+            </View>
+          )}
+          
+          {showDebugPanel && (
+            <View style={styles.debugContent}>
+              <View style={styles.debugStatusRow}>
+                <Text style={styles.debugLabel}>权限状态:</Text>
+                <Text style={[
+                  styles.debugValue,
+                  permissionStatus === PermissionStatus.GRANTED ? styles.statusGranted :
+                  permissionStatus === PermissionStatus.DENIED ? styles.statusDenied :
+                  styles.statusUndetermined
+                ]}>
+                  {permissionStatus === PermissionStatus.GRANTED ? '✅ 已授权' :
+                   permissionStatus === PermissionStatus.DENIED ? '❌ 已拒绝' :
+                   permissionStatus === PermissionStatus.UNDETERMINED ? '⏳ 未确定' :
+                   `未知(${permissionStatus})`}
+                </Text>
+              </View>
+              
+              <View style={styles.debugStatusRow}>
+                <Text style={styles.debugLabel}>IDFA:</Text>
+                <Text style={styles.debugValue} numberOfLines={1}>
+                  {advertisingId || '未获取'}
+                </Text>
+              </View>
+              
+              {Platform.OS === 'ios' && (
+                <View style={styles.debugStatusRow}>
+                  <Text style={styles.debugLabel}>IDFV:</Text>
+                  <Text style={styles.debugValue} numberOfLines={1}>
+                    {idfv || '未获取'}
+                  </Text>
+                </View>
+              )}
+              
+              {/* 故障排除指南 */}
+              {!advertisingId && permissionStatus === PermissionStatus.GRANTED && (
+                <View style={styles.troubleshootBox}>
+                  <Text style={styles.troubleshootTitle}>🔍 故障排除</Text>
+                  <Text style={styles.troubleshootText}>权限已授予但IDFA为空，请检查：</Text>
+                  <Text style={styles.troubleshootItem}>1. 是否在真机上测试（模拟器不支持IDFA）</Text>
+                  <Text style={styles.troubleshootItem}>2. 设置 → 隐私 → Apple广告 → 个性化广告是否关闭</Text>
+                  <Text style={styles.troubleshootItem}>3. 设置 → 隐私 → 跟踪 → 本App是否开启</Text>
+                  <Text style={styles.troubleshootItem}>4. 尝试重启App或重新授权</Text>
+                </View>
+              )}
+              
+              {permissionStatus === PermissionStatus.DENIED && (
+                <View style={styles.troubleshootBox}>
+                  <Text style={styles.troubleshootTitle}>💡 如何开启权限</Text>
+                  <Text style={styles.troubleshootItem}>1. 打开"设置"App</Text>
+                  <Text style={styles.troubleshootItem}>2. 下滑找到本App (Device ID)</Text>
+                  <Text style={styles.troubleshootItem}>3. 点击进入App设置</Text>
+                  <Text style={styles.troubleshootItem}>4. 开启"允许跟踪"选项</Text>
+                  <Text style={styles.troubleshootItem}>5. 返回App重新获取</Text>
+                </View>
+              )}
+              
+              {permissionStatus === PermissionStatus.UNDETERMINED && (
+                <View style={styles.troubleshootBox}>
+                  <Text style={styles.troubleshootTitle}>📌 提示</Text>
+                  <Text style={styles.troubleshootText}>点击上方"获取权限"按钮请求授权</Text>
+                </View>
+              )}
+              
+              <Text style={styles.debugSectionTitle}>📋 详细日志:</Text>
+              <ScrollView style={styles.debugLogScroll} nestedScrollEnabled>
+                {debugInfo.map((info, index) => (
+                  <Text key={index} style={styles.debugLogText}>{info}</Text>
+                ))}
+                {debugInfo.length === 0 && (
+                  <Text style={styles.debugLogText}>暂无日志</Text>
+                )}
+              </ScrollView>
+              
+              <View style={styles.debugButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.debugActionBtn, styles.debugCopyBtn]}
+                  onPress={() => copyToClipboard(debugInfo.join('\n'))}
+                >
+                  <Text style={styles.debugCopyText}>📋 复制日志</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.debugActionBtn, styles.debugRefreshBtn]}
+                  onPress={() => {
+                    Sentry.addBreadcrumb({
+                      category: 'user_action',
+                      message: '用户点击重新检测按钮',
+                      level: 'info',
+                    });
+                    requestPermission();
+                  }}
+                >
+                  <Text style={styles.debugRefreshText}>🔄 重新检测</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {/* 报告问题按钮 */}
+              {(lastError || (!advertisingId && permissionStatus === PermissionStatus.GRANTED)) && (
+                <TouchableOpacity
+                  style={[styles.debugActionBtn, styles.debugReportBtn, { marginTop: 12 }]}
+                  onPress={reportIssue}
+                >
+                  <Text style={styles.debugReportText}>🐛 报告问题到 Sentry</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
 
       </ScrollView>
 
@@ -570,5 +768,151 @@ const styles = StyleSheet.create({
     width: 1,
     height: 1,
     opacity: 0,
+  },
+
+  // Debug Panel
+  debugCard: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#1C1C1E',
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  debugToggle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  errorBox: {
+    backgroundColor: '#FF3B30',
+    padding: 12,
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  debugContent: {
+    padding: 16,
+    backgroundColor: '#2C2C2E',
+  },
+  debugStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#3A3A3C',
+  },
+  debugLabel: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  debugValue: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 10,
+  },
+  statusGranted: {
+    color: '#30D158',
+  },
+  statusDenied: {
+    color: '#FF3B30',
+  },
+  statusUndetermined: {
+    color: '#FF9F0A',
+  },
+  debugSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  debugLogScroll: {
+    maxHeight: 200,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 8,
+    padding: 12,
+  },
+  debugLogText: {
+    fontSize: 11,
+    color: '#98989F',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  troubleshootBox: {
+    marginTop: 12,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF9F0A',
+  },
+  troubleshootTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF9F0A',
+    marginBottom: 8,
+  },
+  troubleshootText: {
+    fontSize: 13,
+    color: '#E5E5EA',
+    marginBottom: 6,
+  },
+  troubleshootItem: {
+    fontSize: 12,
+    color: '#98989F',
+    lineHeight: 18,
+    marginLeft: 8,
+    marginBottom: 4,
+  },
+  debugButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  debugActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debugCopyBtn: {
+    backgroundColor: '#007AFF',
+  },
+  debugCopyText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  debugRefreshBtn: {
+    backgroundColor: '#30D158',
+  },
+  debugRefreshText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  debugReportBtn: {
+    backgroundColor: '#FF9F0A',
+    width: '100%',
+  },
+  debugReportText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 13,
   },
 });

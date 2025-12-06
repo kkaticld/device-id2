@@ -2,16 +2,25 @@
   "name": "device-id2",
   "main": "expo-router/entry",
   "version": "1.0.13",
+  "engines": {
+    "node": ">=20.19.4",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "ios:device": "expo run:ios --device",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:preview": "eas build --platform ios --profile preview",
+    "build:prod": "eas build --platform ios --profile production",
+    "submit": "eas submit -p ios --latest"
   },
   "dependencies": {
     "@expo/schema-utils": "^0.1.8",
     "@react-navigation/native": "^7.0.14",
+    "@sentry/react-native": "~7.2.0",
     "expo": "~54.0.25",
     "expo-application": "~7.0.7",
     "expo-blur": "~15.0.7",

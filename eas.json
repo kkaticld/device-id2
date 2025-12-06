@@ -6,16 +6,35 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "SENTRY_ORG": "kavalon",
+        "SENTRY_PROJECT": "device-id2"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "SENTRY_ORG": "kavalon",
+        "SENTRY_PROJECT": "device-id2",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "SENTRY_ORG": "kavalon",
+        "SENTRY_PROJECT": "device-id2",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     }
   },
   "submit": {
+    "preview": {
+      "ios": {
+        "ascAppId": "6751767400"
+      }
+    },
     "production": {
       "ios": {
         "ascAppId": "6751767400"

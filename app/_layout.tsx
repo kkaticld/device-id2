@@ -1,5 +1,4 @@
 import { Stack } from 'expo-router';
-import 'react-native-reanimated';
 import * as Sentry from '@sentry/react-native';
 import * as Application from 'expo-application';
 import { Platform } from 'react-native';

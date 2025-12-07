@@ -24,14 +24,14 @@ const debugLog = (tag: string, message: string, data?: any) => {
   }
 };
 
-// 错误日志函数
+// 错误日志函数 - 使用 console.warn 避免 Expo Go 显示红色弹窗
 const errorLog = (tag: string, message: string, error?: any) => {
   const timestamp = new Date().toISOString();
-  console.error(`[${timestamp}] [ERROR-${tag}] ${message}`);
+  console.warn(`[${timestamp}] [ERROR-${tag}] ${message}`);
   if (error) {
-    console.error(`[${timestamp}] [ERROR-${tag}] Error Details:`, error);
+    console.warn(`[${timestamp}] [ERROR-${tag}] Error Details:`, error);
     if (error.stack) {
-      console.error(`[${timestamp}] [ERROR-${tag}] Stack Trace:`, error.stack);
+      console.warn(`[${timestamp}] [ERROR-${tag}] Stack Trace:`, error.stack);
     }
   }
 };

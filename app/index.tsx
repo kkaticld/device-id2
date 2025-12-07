@@ -62,6 +62,7 @@ export default function HomeScreen() {
   const [userAgent, setUserAgent] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
   const [ipAddress, setIpAddress] = useState<string | null>(null);
+  const [ipLocation, setIpLocation] = useState<string | null>(null);
   const [isLoadingIp, setIsLoadingIp] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -78,9 +79,17 @@ export default function HomeScreen() {
   const getIpAddress = async () => {
     setIsLoadingIp(true);
     try {
-      const response = await fetch('https://api.ipify.org/');
-      const ip = await response.text();
-      setIpAddress(ip);
+      const response = await fetch('https://api.live.bilibili.com/xlive/web-room/v1/index/getIpInfo');
+      const json = await response.json();
+      
+      // 解析 Bilibili API 响应
+      if (json.code === 0 && json.data) {
+        const { addr, country } = json.data;
+        setIpAddress(addr || null);
+        setIpLocation(country || null);
+      } else {
+        Alert.alert('获取失败', '无法解析IP地址');
+      }
     } catch (error) {
       Alert.alert('获取失败', '无法获取IP地址');
     } finally {
@@ -335,10 +344,10 @@ export default function HomeScreen() {
           actionLabel="获取 UA"
         />
 
-        <FeatureCard 
+        <FeatureCard
           title="IP Address"
           subtitle="网络地址"
-          value={ipAddress}
+          value={ipAddress ? `${ipAddress}${ipLocation ? ` (${ipLocation})` : ''}` : null}
           action={getIpAddress}
           actionLabel="获取 IP"
           isLoading={isLoadingIp}

@@ -307,21 +307,19 @@ export function useDeviceId(): DeviceInfo {
           debugLog('TRACKING', '权限未授予', { status, statusName: getStatusName(status) });
           addDebugInfo(`❌ 权限未授予: ${getStatusName(status)}`);
           
-          // Sentry: 记录权限未授予情况
-          Sentry.captureMessage('IDFA权限未授予', {
-            level: status === TrackingTransparency.PermissionStatus.DENIED ? 'warning' : 'info',
-            tags: { feature: 'idfa', step: 'check_permission' },
-            contexts: {
-              permission: {
-                status,
-                status_name: getStatusName(status),
-                is_denied: status === TrackingTransparency.PermissionStatus.DENIED,
-                is_undetermined: status === TrackingTransparency.PermissionStatus.UNDETERMINED,
-              }
-            }
-          });
-          
+          // Sentry: 仅在权限被明确拒绝时记录
           if (status === TrackingTransparency.PermissionStatus.DENIED) {
+            Sentry.captureMessage('IDFA权限未授予', {
+              level: 'warning',
+              tags: { feature: 'idfa', step: 'check_permission' },
+              contexts: {
+                permission: {
+                  status,
+                  status_name: getStatusName(status),
+                  is_denied: true,
+                }
+              }
+            });
             addDebugInfo('📌 用户已拒绝权限');
             addDebugInfo('💡 解决方法: 设置->隐私与安全性->跟踪->允许本应用');
           } else if (status === TrackingTransparency.PermissionStatus.UNDETERMINED) {

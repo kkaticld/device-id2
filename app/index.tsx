@@ -17,7 +17,7 @@ export default function HomeScreen() {
   useEffect(() => {
     Sentry.addBreadcrumb({
       category: 'navigation',
-      message: '进入首页',
+      message: 'Opened home',
       level: 'info',
     });
   }, []);
@@ -27,7 +27,7 @@ export default function HomeScreen() {
     const subscription = AppState.addEventListener('change', nextAppState => {
       Sentry.addBreadcrumb({
         category: 'app_state',
-        message: `应用状态变化: ${nextAppState}`,
+        message: `App state changed: ${nextAppState}`,
         data: { state: nextAppState },
         level: 'info',
       });
@@ -38,10 +38,10 @@ export default function HomeScreen() {
     };
   }, []);
   
-  // 使用 useMemo 确保图片 URL 在组件生命周期内保持不变
-  const HERO_BG = useMemo(() => ({ uri: `https://picsum.photos/800/1000?t=${Date.now()}` }), []);
-  const APP_ICON_IMG = useMemo(() => ({ uri: `https://picsum.photos/200/200?t=${Date.now() + 1}` }), []);
-  const FEATURE_IMG = useMemo(() => ({ uri: `https://picsum.photos/800/600?t=${Date.now() + 2}` }), []);
+  // Bundled local images (no third-party image requests)
+  const HERO_BG = require('@/assets/images/hero-bg.png');
+  const APP_ICON_IMG = require('@/assets/images/icon.png');
+  const FEATURE_IMG = require('@/assets/images/hero-bg.png');
   
   const { 
     advertisingId, 
@@ -73,7 +73,7 @@ export default function HomeScreen() {
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
-    showToast('已复制');
+    showToast('Copied');
   };
 
   const getIpAddress = async () => {
@@ -88,10 +88,10 @@ export default function HomeScreen() {
         setIpAddress(addr || null);
         setIpLocation(country || null);
       } else {
-        Alert.alert('获取失败', '无法解析IP地址');
+        Alert.alert('Failed', 'Could not parse IP address');
       }
     } catch (error) {
-      Alert.alert('获取失败', '无法获取IP地址');
+      Alert.alert('Failed', 'Could not get IP address');
     } finally {
       setIsLoadingIp(false);
     }
@@ -105,7 +105,7 @@ export default function HomeScreen() {
     try {
       Sentry.addBreadcrumb({
         category: 'user_action',
-        message: '用户点击分享按钮',
+        message: 'User tapped share',
         level: 'info',
       });
       
@@ -113,10 +113,10 @@ export default function HomeScreen() {
         'Application ID': applicationId,
         'App Version': nativeVersion,
         'Build Version': nativeBuildVersion,
-        [Platform.OS === 'ios' ? 'IDFA' : 'GAID']: advertisingId || '未获取',
+        [Platform.OS === 'ios' ? 'IDFA' : 'GAID']: advertisingId || 'N/A',
         [Platform.OS === 'ios' ? 'IDFV' : 'Android ID']: Platform.OS === 'ios' ? idfv : androidId,
-        'UserAgent': userAgent || '未获取',
-        'IP Address': ipAddress || '未获取',
+        'UserAgent': userAgent || 'N/A',
+        'IP Address': ipAddress || 'N/A',
       };
 
       const message = Object.entries(deviceInfo)
@@ -139,11 +139,11 @@ export default function HomeScreen() {
   const reportIssue = () => {
     Sentry.addBreadcrumb({
       category: 'user_action',
-      message: '用户点击报告问题按钮',
+      message: 'User tapped report issue',
       level: 'info',
     });
     
-    const eventId = Sentry.captureMessage('用户报告 IDFA 问题', {
+    const eventId = Sentry.captureMessage('User reported IDFA issue', {
       level: 'info',
       tags: {
         feature: 'idfa',
@@ -152,7 +152,7 @@ export default function HomeScreen() {
       },
       contexts: {
         debug_info: {
-          logs: debugInfo.slice(-20), // 最后20条日志
+          logs: debugInfo.slice(-20).map(l => l.replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '[redacted-id]')), // 最后20条日志
           permission_status: permissionStatus,
           has_idfa: !!advertisingId,
           has_idfv: !!idfv,
@@ -166,7 +166,7 @@ export default function HomeScreen() {
       }
     });
     
-    showToast('问题已报告到 Sentry (ID: ' + eventId?.substring(0, 8) + ')');
+    showToast('Issue reported (ID: ' + eventId?.substring(0, 8) + ')');
   };
 
   // --- Components ---
@@ -204,7 +204,7 @@ export default function HomeScreen() {
               <Text style={styles.heroSubtitle}>DEVICE IDENTIFIER</Text>
               <Text style={styles.heroTitle}>{title}</Text>
               <Text style={styles.heroDescription} numberOfLines={2}>
-                {hasPermission ? (id || '获取中...') : '需要权限以获取标识符'}
+                {hasPermission ? (id || 'Loading...') : 'Permission required to read this identifier'}
               </Text>
               
               {!hasPermission && (
@@ -215,7 +215,7 @@ export default function HomeScreen() {
                     requestPermission();
                   }}
                 >
-                  <Text style={styles.heroButtonText}>获取权限</Text>
+                  <Text style={styles.heroButtonText}>Allow Access</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -238,11 +238,11 @@ export default function HomeScreen() {
         <View style={styles.listHeader}>
           <Image source={APP_ICON_IMG} style={styles.listIcon} />
           <View style={styles.listHeaderText}>
-            <Text style={styles.listTitle}>应用信息</Text>
-            <Text style={styles.listSubtitle}>基础配置参数</Text>
+            <Text style={styles.listTitle}>App Info</Text>
+            <Text style={styles.listSubtitle}>Basic configuration</Text>
           </View>
           <TouchableOpacity style={styles.listActionBtn} onPress={() => copyToClipboard(JSON.stringify(items))}>
-             <Text style={styles.listActionText}>复制全部</Text>
+             <Text style={styles.listActionText}>Copy All</Text>
           </TouchableOpacity>
         </View>
         
@@ -258,7 +258,7 @@ export default function HomeScreen() {
                 <Text style={styles.listItemValue} numberOfLines={1}>{item.value || '-'}</Text>
               </View>
               <TouchableOpacity style={styles.copyButton} onPress={() => item.value && copyToClipboard(item.value)}>
-                <Text style={styles.copyButtonText}>复制</Text>
+                <Text style={styles.copyButtonText}>Copy</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           ))}
@@ -278,17 +278,17 @@ export default function HomeScreen() {
         <Text style={styles.featureSubtitle}>{subtitle}</Text>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureValue} numberOfLines={2}>
-          {value || '点击获取数据'}
+          {value || 'Tap to load'}
         </Text>
         
         <View style={styles.featureButtonContainer}>
           {!value ? (
             <TouchableOpacity style={styles.featureButton} onPress={action}>
-              <Text style={styles.featureButtonText}>{isLoading ? '获取中...' : actionLabel}</Text>
+              <Text style={styles.featureButtonText}>{isLoading ? 'Loading...' : actionLabel}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.featureButton} onPress={() => copyToClipboard(value)}>
-              <Text style={styles.featureButtonText}>复制</Text>
+              <Text style={styles.featureButtonText}>Copy</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -338,18 +338,18 @@ export default function HomeScreen() {
         
         <FeatureCard 
           title="User Agent"
-          subtitle="浏览器标识"
+          subtitle="Browser identifier"
           value={userAgent}
           action={getUserAgent}
-          actionLabel="获取 UA"
+          actionLabel="Get UA"
         />
 
         <FeatureCard
           title="IP Address"
-          subtitle="网络地址"
+          subtitle="Network address"
           value={ipAddress ? `${ipAddress}${ipLocation ? ` (${ipLocation})` : ''}` : null}
           action={getIpAddress}
-          actionLabel="获取 IP"
+          actionLabel="Get IP"
           isLoading={isLoadingIp}
         />
 
@@ -359,37 +359,37 @@ export default function HomeScreen() {
             style={styles.debugHeader} 
             onPress={() => setShowDebugPanel(!showDebugPanel)}
           >
-            <Text style={styles.debugTitle}>🔧 调试信息</Text>
-            <Text style={styles.debugToggle}>{showDebugPanel ? '收起 ▲' : '展开 ▼'}</Text>
+            <Text style={styles.debugTitle}>🔧 Debug Info</Text>
+            <Text style={styles.debugToggle}>{showDebugPanel ? 'Hide ▲' : 'Show ▼'}</Text>
           </TouchableOpacity>
           
           {lastError && (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>❌ 错误: {lastError}</Text>
+              <Text style={styles.errorText}>❌ Error: {lastError}</Text>
             </View>
           )}
           
           {showDebugPanel && (
             <View style={styles.debugContent}>
               <View style={styles.debugStatusRow}>
-                <Text style={styles.debugLabel}>权限状态:</Text>
+                <Text style={styles.debugLabel}>Permission:</Text>
                 <Text style={[
                   styles.debugValue,
                   permissionStatus === PermissionStatus.GRANTED ? styles.statusGranted :
                   permissionStatus === PermissionStatus.DENIED ? styles.statusDenied :
                   styles.statusUndetermined
                 ]}>
-                  {permissionStatus === PermissionStatus.GRANTED ? '✅ 已授权' :
-                   permissionStatus === PermissionStatus.DENIED ? '❌ 已拒绝' :
-                   permissionStatus === PermissionStatus.UNDETERMINED ? '⏳ 未确定' :
-                   `未知(${permissionStatus})`}
+                  {permissionStatus === PermissionStatus.GRANTED ? '✅ Allowed' :
+                   permissionStatus === PermissionStatus.DENIED ? '❌ Denied' :
+                   permissionStatus === PermissionStatus.UNDETERMINED ? '⏳ Not determined' :
+                   `Unknown (${permissionStatus})`}
                 </Text>
               </View>
               
               <View style={styles.debugStatusRow}>
                 <Text style={styles.debugLabel}>IDFA:</Text>
                 <Text style={styles.debugValue} numberOfLines={1}>
-                  {advertisingId || '未获取'}
+                  {advertisingId || 'N/A'}
                 </Text>
               </View>
               
@@ -397,7 +397,7 @@ export default function HomeScreen() {
                 <View style={styles.debugStatusRow}>
                   <Text style={styles.debugLabel}>IDFV:</Text>
                   <Text style={styles.debugValue} numberOfLines={1}>
-                    {idfv || '未获取'}
+                    {idfv || 'N/A'}
                   </Text>
                 </View>
               )}
@@ -405,40 +405,40 @@ export default function HomeScreen() {
               {/* 故障排除指南 */}
               {!advertisingId && permissionStatus === PermissionStatus.GRANTED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>🔍 故障排除</Text>
-                  <Text style={styles.troubleshootText}>权限已授予但IDFA为空，请检查：</Text>
-                  <Text style={styles.troubleshootItem}>1. 是否在真机上测试（模拟器不支持IDFA）</Text>
-                  <Text style={styles.troubleshootItem}>2. 设置 → 隐私 → Apple广告 → 个性化广告是否关闭</Text>
-                  <Text style={styles.troubleshootItem}>3. 设置 → 隐私 → 跟踪 → 本App是否开启</Text>
-                  <Text style={styles.troubleshootItem}>4. 尝试重启App或重新授权</Text>
+                  <Text style={styles.troubleshootTitle}>🔍 Troubleshooting</Text>
+                  <Text style={styles.troubleshootText}>Permission granted but IDFA is empty. Check:</Text>
+                  <Text style={styles.troubleshootItem}>1. Use a real device (the simulator has no IDFA)</Text>
+                  <Text style={styles.troubleshootItem}>2. Settings → Privacy → Apple Advertising → Personalized Ads</Text>
+                  <Text style={styles.troubleshootItem}>3. Settings → Privacy → Tracking → this app is on</Text>
+                  <Text style={styles.troubleshootItem}>4. Restart the app or grant permission again</Text>
                 </View>
               )}
               
               {permissionStatus === PermissionStatus.DENIED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>💡 如何开启权限</Text>
-                  <Text style={styles.troubleshootItem}>1. 打开"设置"App</Text>
-                  <Text style={styles.troubleshootItem}>2. 下滑找到本App (Device ID)</Text>
-                  <Text style={styles.troubleshootItem}>3. 点击进入App设置</Text>
-                  <Text style={styles.troubleshootItem}>4. 开启"允许跟踪"选项</Text>
-                  <Text style={styles.troubleshootItem}>5. 返回App重新获取</Text>
+                  <Text style={styles.troubleshootTitle}>💡 How to enable</Text>
+                  <Text style={styles.troubleshootItem}>1. Open the Settings app</Text>
+                  <Text style={styles.troubleshootItem}>2. Scroll down to DeviceId2</Text>
+                  <Text style={styles.troubleshootItem}>3. Open the app settings</Text>
+                  <Text style={styles.troubleshootItem}>4. Turn on "Allow Tracking"</Text>
+                  <Text style={styles.troubleshootItem}>5. Come back and refresh</Text>
                 </View>
               )}
               
               {permissionStatus === PermissionStatus.UNDETERMINED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>📌 提示</Text>
-                  <Text style={styles.troubleshootText}>点击上方"获取权限"按钮请求授权</Text>
+                  <Text style={styles.troubleshootTitle}>📌 Tip</Text>
+                  <Text style={styles.troubleshootText}>Tap "Allow Access" above to request permission</Text>
                 </View>
               )}
               
-              <Text style={styles.debugSectionTitle}>📋 详细日志:</Text>
+              <Text style={styles.debugSectionTitle}>📋 Logs:</Text>
               <ScrollView style={styles.debugLogScroll} nestedScrollEnabled>
                 {debugInfo.map((info, index) => (
                   <Text key={index} style={styles.debugLogText}>{info}</Text>
                 ))}
                 {debugInfo.length === 0 && (
-                  <Text style={styles.debugLogText}>暂无日志</Text>
+                  <Text style={styles.debugLogText}>No logs yet</Text>
                 )}
               </ScrollView>
               
@@ -447,7 +447,7 @@ export default function HomeScreen() {
                   style={[styles.debugActionBtn, styles.debugCopyBtn]}
                   onPress={() => copyToClipboard(debugInfo.join('\n'))}
                 >
-                  <Text style={styles.debugCopyText}>📋 复制日志</Text>
+                  <Text style={styles.debugCopyText}>📋 Copy Logs</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -455,13 +455,13 @@ export default function HomeScreen() {
                   onPress={() => {
                     Sentry.addBreadcrumb({
                       category: 'user_action',
-                      message: '用户点击重新检测按钮',
+                      message: 'User tapped retry',
                       level: 'info',
                     });
                     requestPermission();
                   }}
                 >
-                  <Text style={styles.debugRefreshText}>🔄 重新检测</Text>
+                  <Text style={styles.debugRefreshText}>🔄 Retry</Text>
                 </TouchableOpacity>
               </View>
               
@@ -471,7 +471,7 @@ export default function HomeScreen() {
                   style={[styles.debugActionBtn, styles.debugReportBtn, { marginTop: 12 }]}
                   onPress={reportIssue}
                 >
-                  <Text style={styles.debugReportText}>🐛 报告问题到 Sentry</Text>
+                  <Text style={styles.debugReportText}>🐛 Report Issue</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -602,7 +602,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     alignSelf: 'flex-start',
-    backdropFilter: 'blur(10px)',
   },
   heroButtonText: {
     color: '#FFFFFF',

@@ -3,7 +3,9 @@ import * as Sentry from '@sentry/react-native';
 import * as Application from 'expo-application';
 import { Platform } from 'react-native';
 
-// 初始化 Sentry
+const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g;
+
+// Initialize Sentry
 Sentry.init({
   dsn: 'https://5aaca94bee2c4218db9e504071b5447d@o4510284665782272.ingest.us.sentry.io/4510284668665856',
   environment: __DEV__ ? 'development' : 'production',
@@ -11,12 +13,18 @@ Sentry.init({
   tracesSampleRate: 1.0, // 100% 性能追踪
   enableAutoSessionTracking: true,
   attachStacktrace: true,
-  beforeSend(event, hint) {
-    // 开发环境下打印日志
-    if (__DEV__) {
-      console.log('[Sentry] Event:', event);
+  // Never send console output as breadcrumbs (it may contain device identifiers)
+  beforeBreadcrumb(breadcrumb) {
+    if (breadcrumb.category === 'console') return null;
+    return breadcrumb;
+  },
+  beforeSend(event) {
+    // Defense in depth: redact anything shaped like an IDFA/IDFV (UUID)
+    try {
+      return JSON.parse(JSON.stringify(event).replace(UUID_RE, '[redacted-id]'));
+    } catch {
+      return event;
     }
-    return event;
   },
 });
 
@@ -29,10 +37,10 @@ Sentry.setContext('device_info', {
   bundle_id: Application.applicationId,
 });
 
-// 添加应用启动面包屑
+// 添加App launched面包屑
 Sentry.addBreadcrumb({
   category: 'lifecycle',
-  message: '应用启动',
+  message: 'App launched',
   level: 'info',
   data: {
     platform: Platform.OS,

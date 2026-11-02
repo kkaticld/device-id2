@@ -1,0 +1,5 @@
+/** Hero pattern: Overlapping Circles (heropatterns) */
+export const name = "Overlapping Circles";
+export const license = "heropatterns";
+export const xml = "<svg xmlns='http://www.w3.org/2000/svg' width='1290' height='560' viewBox='0 0 1290 560'><defs><linearGradient id='g-overlappingcircles' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#3B82F6'/><stop offset='1' stop-color='#1E40AF'/></linearGradient><pattern id='p-overlappingcircles' patternUnits='userSpaceOnUse' width='80' height='80' patternTransform='scale(1.4)'><g fill='#fff' fill-opacity='0.18'><path d=\"M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zM10 10c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10S0 25.523 0 20s4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40 40c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z\"/></g></pattern></defs><rect width='100%' height='100%' fill='url(#g-overlappingcircles)'/><rect width='100%' height='100%' fill='url(#p-overlappingcircles)'/></svg>";
+export default xml;

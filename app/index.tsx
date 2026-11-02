@@ -1,6 +1,8 @@
 import { PermissionStatus } from 'expo-tracking-transparency';
-import { useState, useMemo, useEffect } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ImageBackground, Image, Share, AppState } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, Share, AppState } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
@@ -10,14 +12,21 @@ import * as Sentry from '@sentry/react-native';
 
 import { useDeviceId } from '@/hooks/useDeviceId';
 
+import { PatternHeader } from '@/components/PatternHeader';
+import { HERO_PATTERNS, type HeroPattern } from '@/assets/images/patterns';
+import { useI18n } from '@/lib/i18n';
+
+// Hero Patterns pool (25 SVGs): Hero Patterns CC BY 4.0 + pattern.monster MIT — see Credits
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { t } = useI18n();
   
   // Sentry: 页面加载追踪
   useEffect(() => {
     Sentry.addBreadcrumb({
       category: 'navigation',
-      message: '进入首页',
+      message: 'Opened home',
       level: 'info',
     });
   }, []);
@@ -27,7 +36,7 @@ export default function HomeScreen() {
     const subscription = AppState.addEventListener('change', nextAppState => {
       Sentry.addBreadcrumb({
         category: 'app_state',
-        message: `应用状态变化: ${nextAppState}`,
+        message: `App state changed: ${nextAppState}`,
         data: { state: nextAppState },
         level: 'info',
       });
@@ -38,10 +47,20 @@ export default function HomeScreen() {
     };
   }, []);
   
-  // 使用 useMemo 确保图片 URL 在组件生命周期内保持不变
-  const HERO_BG = useMemo(() => ({ uri: `https://picsum.photos/800/1000?t=${Date.now()}` }), []);
-  const APP_ICON_IMG = useMemo(() => ({ uri: `https://picsum.photos/200/200?t=${Date.now() + 1}` }), []);
-  const FEATURE_IMG = useMemo(() => ({ uri: `https://picsum.photos/800/600?t=${Date.now() + 2}` }), []);
+  // Bundled local images (no third-party image requests)
+  const APP_ICON_IMG = require('@/assets/images/icon.png');
+
+  // Independent random pattern per header image area (re-roll on remount / cold open)
+  // Mount-time random pick (client-only) so SSR/web hydration stays stable
+  const pickPattern = () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)];
+  const [heroPattern, setHeroPattern] = useState<HeroPattern>(HERO_PATTERNS[0]);
+  const [uaPattern, setUaPattern] = useState<HeroPattern>(HERO_PATTERNS[1 % HERO_PATTERNS.length]);
+  const [ipPattern, setIpPattern] = useState<HeroPattern>(HERO_PATTERNS[2 % HERO_PATTERNS.length]);
+  useEffect(() => {
+    setHeroPattern(pickPattern());
+    setUaPattern(pickPattern());
+    setIpPattern(pickPattern());
+  }, []);
   
   const { 
     advertisingId, 
@@ -58,6 +77,31 @@ export default function HomeScreen() {
   } = useDeviceId();
   
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [debugUnlocked, setDebugUnlocked] = useState(false);
+  const [titleTapCount, setTitleTapCount] = useState(0);
+  const lastTitleTapAt = useRef(0);
+
+  const handleTitleTap = () => {
+    const now = Date.now();
+    const gap = now - lastTitleTapAt.current;
+    lastTitleTapAt.current = now;
+    setTitleTapCount((prev) => {
+      const next = gap < 1000 ? prev + 1 : 1;
+      if (next >= 5) {
+        setDebugUnlocked(true);
+        setShowDebugPanel(true);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const hideDebugPanelCompletely = () => {
+    setDebugUnlocked(false);
+    setShowDebugPanel(false);
+    setTitleTapCount(0);
+    lastTitleTapAt.current = 0;
+  };
   
   const [userAgent, setUserAgent] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
@@ -73,7 +117,7 @@ export default function HomeScreen() {
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
-    showToast('已复制');
+    showToast(t('home.copied'));
   };
 
   const getIpAddress = async () => {
@@ -88,10 +132,10 @@ export default function HomeScreen() {
         setIpAddress(addr || null);
         setIpLocation(country || null);
       } else {
-        Alert.alert('获取失败', '无法解析IP地址');
+        Alert.alert(t('home.ipFailedTitle'), t('home.ipFailedParse'));
       }
     } catch (error) {
-      Alert.alert('获取失败', '无法获取IP地址');
+      Alert.alert(t('home.ipFailedTitle'), t('home.ipFailedFetch'));
     } finally {
       setIsLoadingIp(false);
     }
@@ -101,31 +145,39 @@ export default function HomeScreen() {
     setShowWebView(true);
   };
 
+  const buildDeviceInfoMessage = () => {
+    const deviceInfo = {
+      'Application ID': applicationId,
+      'App Version': nativeVersion,
+      'Build Version': nativeBuildVersion,
+      [Platform.OS === 'ios' ? 'IDFA' : 'GAID']: advertisingId || 'N/A',
+      [Platform.OS === 'ios' ? 'IDFV' : 'Android ID']: Platform.OS === 'ios' ? idfv : androidId,
+      'UserAgent': userAgent || 'N/A',
+      'IP Address': ipAddress || 'N/A',
+    };
+
+    const message = Object.entries(deviceInfo)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n');
+
+    return `${t('home.shareTitle')}\n\n${message}`;
+  };
+
+  const handleCopyAll = () => {
+    copyToClipboard(buildDeviceInfoMessage());
+  };
+
   const handleShare = async () => {
     try {
       Sentry.addBreadcrumb({
         category: 'user_action',
-        message: '用户点击分享按钮',
+        message: 'User tapped share',
         level: 'info',
       });
-      
-      const deviceInfo = {
-        'Application ID': applicationId,
-        'App Version': nativeVersion,
-        'Build Version': nativeBuildVersion,
-        [Platform.OS === 'ios' ? 'IDFA' : 'GAID']: advertisingId || '未获取',
-        [Platform.OS === 'ios' ? 'IDFV' : 'Android ID']: Platform.OS === 'ios' ? idfv : androidId,
-        'UserAgent': userAgent || '未获取',
-        'IP Address': ipAddress || '未获取',
-      };
-
-      const message = Object.entries(deviceInfo)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n');
 
       await Share.share({
-        message: `Device ID Information\n\n${message}`,
-        title: 'Device ID Information'
+        message: buildDeviceInfoMessage(),
+        title: t('home.shareTitle')
       });
     } catch (error) {
       console.error('Share error:', error);
@@ -139,11 +191,11 @@ export default function HomeScreen() {
   const reportIssue = () => {
     Sentry.addBreadcrumb({
       category: 'user_action',
-      message: '用户点击报告问题按钮',
+      message: 'User tapped report issue',
       level: 'info',
     });
     
-    const eventId = Sentry.captureMessage('用户报告 IDFA 问题', {
+    const eventId = Sentry.captureMessage('User reported IDFA issue', {
       level: 'info',
       tags: {
         feature: 'idfa',
@@ -152,7 +204,7 @@ export default function HomeScreen() {
       },
       contexts: {
         debug_info: {
-          logs: debugInfo.slice(-20), // 最后20条日志
+          logs: debugInfo.slice(-20).map(l => l.replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, '[redacted-id]')), // 最后20条日志
           permission_status: permissionStatus,
           has_idfa: !!advertisingId,
           has_idfv: !!idfv,
@@ -166,7 +218,7 @@ export default function HomeScreen() {
       }
     });
     
-    showToast('问题已报告到 Sentry (ID: ' + eventId?.substring(0, 8) + ')');
+    showToast(t('home.issueReported', { id: eventId?.substring(0, 8) || '' }));
   };
 
   // --- Components ---
@@ -175,16 +227,43 @@ export default function HomeScreen() {
     return (
       <View style={styles.dateHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.dateTitle}>Device ID</Text>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Text style={styles.shareIcon}>↗</Text>
+          <TouchableOpacity
+            onPress={handleTitleTap}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.title')}
+            style={styles.titleTapTarget}
+          >
+            <Text style={styles.dateTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+              {t('home.title')}
+            </Text>
           </TouchableOpacity>
+          <View style={styles.titleActions}>
+            <TouchableOpacity
+              style={styles.titleActionBtn}
+              onPress={handleCopyAll}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.copyAll')}
+            >
+              <MaterialIcons name="content-copy" size={16} color="#007AFF" />
+              <Text style={styles.titleActionText}>{t('home.copyAll')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.titleActionBtn}
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.share')}
+            >
+              <MaterialIcons name="ios-share" size={16} color="#007AFF" />
+              <Text style={styles.titleActionText}>{t('home.share')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
   };
 
-  const HeroCard = () => {
+  const HeroCard = ({ pattern }: { pattern: HeroPattern }) => {
     const id = Platform.OS === 'ios' ? advertisingId : advertisingId;
     const title = Platform.OS === 'ios' ? "IDFA" : "GAID";
     const hasPermission = permissionStatus === PermissionStatus.GRANTED;
@@ -193,43 +272,40 @@ export default function HomeScreen() {
       <TouchableOpacity 
         activeOpacity={0.9} 
         onPress={() => id && copyToClipboard(id)}
-        style={[styles.cardContainer, styles.heroCard]}
+        style={[styles.cardContainer, styles.heroCard, styles.heroCardSplit]}
       >
-        <ImageBackground source={HERO_BG} style={styles.heroImage} imageStyle={{ borderRadius: 14 }}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroContent}>
-              <Text style={styles.heroSubtitle}>DEVICE IDENTIFIER</Text>
-              <Text style={styles.heroTitle}>{title}</Text>
-              <Text style={styles.heroDescription} numberOfLines={2}>
-                {hasPermission ? (id || '获取中...') : '需要权限以获取标识符'}
-              </Text>
-              
-              {!hasPermission && (
-                <TouchableOpacity 
-                  style={styles.heroButton}
-                  onPress={(e: any) => {
-                    e.stopPropagation();
-                    requestPermission();
-                  }}
-                >
-                  <Text style={styles.heroButtonText}>获取权限</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </LinearGradient>
-        </ImageBackground>
+        <PatternHeader xml={pattern.xml} height={220} style={styles.heroImageTop}>
+          <View style={styles.heroImageTag}>
+            <Text style={styles.heroImageTagText}>{title}</Text>
+          </View>
+        </PatternHeader>
+        <View style={styles.heroInfoPanel}>
+          <Text style={styles.heroSubtitleDark}>{t('home.deviceIdentifier')}</Text>
+          <Text style={styles.heroTitleDark}>{title}</Text>
+          <Text style={styles.heroDescriptionDark} numberOfLines={2}>
+            {hasPermission ? (id || t('home.loading')) : t('home.permissionRequired')}
+          </Text>
+          {!hasPermission && (
+            <TouchableOpacity 
+              style={styles.heroButtonDark}
+              onPress={(e: any) => {
+                e.stopPropagation();
+                requestPermission();
+              }}
+            >
+              <Text style={styles.heroButtonTextDark}>{t('home.allowAccess')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
 
   const AppInfoCard = () => {
     const items = [
-      { label: 'Bundle ID', value: applicationId },
-      { label: 'Version', value: nativeVersion },
-      { label: 'Build', value: nativeBuildVersion },
+      { label: t('home.bundleId'), value: applicationId },
+      { label: t('home.version'), value: nativeVersion },
+      { label: t('home.build'), value: nativeBuildVersion },
       { label: Platform.OS === 'ios' ? 'IDFV' : 'Android ID', value: Platform.OS === 'ios' ? idfv : androidId },
     ];
 
@@ -238,12 +314,9 @@ export default function HomeScreen() {
         <View style={styles.listHeader}>
           <Image source={APP_ICON_IMG} style={styles.listIcon} />
           <View style={styles.listHeaderText}>
-            <Text style={styles.listTitle}>应用信息</Text>
-            <Text style={styles.listSubtitle}>基础配置参数</Text>
+            <Text style={styles.listTitle}>{t('home.appInfo')}</Text>
+            <Text style={styles.listSubtitle}>{t('home.appInfoSubtitle')}</Text>
           </View>
-          <TouchableOpacity style={styles.listActionBtn} onPress={() => copyToClipboard(JSON.stringify(items))}>
-             <Text style={styles.listActionText}>复制全部</Text>
-          </TouchableOpacity>
         </View>
         
         <View style={styles.listContent}>
@@ -258,7 +331,7 @@ export default function HomeScreen() {
                 <Text style={styles.listItemValue} numberOfLines={1}>{item.value || '-'}</Text>
               </View>
               <TouchableOpacity style={styles.copyButton} onPress={() => item.value && copyToClipboard(item.value)}>
-                <Text style={styles.copyButtonText}>复制</Text>
+                <Text style={styles.copyButtonText}>{t('home.copy')}</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           ))}
@@ -267,28 +340,28 @@ export default function HomeScreen() {
     );
   };
 
-  const FeatureCard = ({ title, subtitle, value, action, actionLabel, isLoading }: any) => (
+  const FeatureCard = ({ title, subtitle, value, action, actionLabel, isLoading, pattern }: any) => (
     <View style={[styles.cardContainer, styles.featureCard]}>
-      <ImageBackground source={FEATURE_IMG} style={styles.featureImage} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+      <PatternHeader xml={pattern.xml} height={200} style={styles.featureImage}>
         <View style={styles.featureTag}>
-          <Text style={styles.featureTagText}>NETWORK</Text>
+          <Text style={styles.featureTagText}>{t('home.network')}</Text>
         </View>
-      </ImageBackground>
+      </PatternHeader>
       <View style={styles.featureContent}>
         <Text style={styles.featureSubtitle}>{subtitle}</Text>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureValue} numberOfLines={2}>
-          {value || '点击获取数据'}
+          {value || t('home.tapToLoad')}
         </Text>
         
         <View style={styles.featureButtonContainer}>
           {!value ? (
             <TouchableOpacity style={styles.featureButton} onPress={action}>
-              <Text style={styles.featureButtonText}>{isLoading ? '获取中...' : actionLabel}</Text>
+              <Text style={styles.featureButtonText}>{isLoading ? t('home.loading') : actionLabel}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.featureButton} onPress={() => copyToClipboard(value)}>
-              <Text style={styles.featureButtonText}>复制</Text>
+              <Text style={styles.featureButtonText}>{t('home.copy')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -332,64 +405,67 @@ export default function HomeScreen() {
       >
         <DateHeader />
         
-        <HeroCard />
+        <HeroCard pattern={heroPattern} />
         
         <AppInfoCard />
         
         <FeatureCard 
-          title="User Agent"
-          subtitle="浏览器标识"
+          title={t('home.userAgent')}
+          subtitle={t('home.userAgentSubtitle')}
           value={userAgent}
           action={getUserAgent}
-          actionLabel="获取 UA"
+          actionLabel={t('home.getUa')}
+          pattern={uaPattern}
         />
 
         <FeatureCard
-          title="IP Address"
-          subtitle="网络地址"
+          title={t('home.ipAddress')}
+          subtitle={t('home.ipSubtitle')}
           value={ipAddress ? `${ipAddress}${ipLocation ? ` (${ipLocation})` : ''}` : null}
           action={getIpAddress}
-          actionLabel="获取 IP"
+          actionLabel={t('home.getIp')}
           isLoading={isLoadingIp}
+          pattern={ipPattern}
         />
 
-        {/* 调试面板 */}
+        {/* Debug panel — hidden until unlocked via 5 quick taps on the home title */}
+        {debugUnlocked && (
         <View style={[styles.cardContainer, styles.debugCard]}>
           <TouchableOpacity 
             style={styles.debugHeader} 
             onPress={() => setShowDebugPanel(!showDebugPanel)}
           >
-            <Text style={styles.debugTitle}>🔧 调试信息</Text>
-            <Text style={styles.debugToggle}>{showDebugPanel ? '收起 ▲' : '展开 ▼'}</Text>
+            <Text style={styles.debugTitle}>🔧 {t('debug.title')}</Text>
+            <Text style={styles.debugToggle}>{showDebugPanel ? t('debug.hide') : t('debug.show')}</Text>
           </TouchableOpacity>
           
           {lastError && (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>❌ 错误: {lastError}</Text>
+              <Text style={styles.errorText}>❌ {t('debug.errorPrefix')} {lastError}</Text>
             </View>
           )}
           
           {showDebugPanel && (
             <View style={styles.debugContent}>
               <View style={styles.debugStatusRow}>
-                <Text style={styles.debugLabel}>权限状态:</Text>
+                <Text style={styles.debugLabel}>{t('debug.permission')}</Text>
                 <Text style={[
                   styles.debugValue,
                   permissionStatus === PermissionStatus.GRANTED ? styles.statusGranted :
                   permissionStatus === PermissionStatus.DENIED ? styles.statusDenied :
                   styles.statusUndetermined
                 ]}>
-                  {permissionStatus === PermissionStatus.GRANTED ? '✅ 已授权' :
-                   permissionStatus === PermissionStatus.DENIED ? '❌ 已拒绝' :
-                   permissionStatus === PermissionStatus.UNDETERMINED ? '⏳ 未确定' :
-                   `未知(${permissionStatus})`}
+                  {permissionStatus === PermissionStatus.GRANTED ? `✅ ${t('debug.allowed')}` :
+                   permissionStatus === PermissionStatus.DENIED ? `❌ ${t('debug.statusDenied')}` :
+                   permissionStatus === PermissionStatus.UNDETERMINED ? `⏳ ${t('debug.notDetermined')}` :
+                   t('debug.statusUnknown', { status: String(permissionStatus) })}
                 </Text>
               </View>
               
               <View style={styles.debugStatusRow}>
                 <Text style={styles.debugLabel}>IDFA:</Text>
                 <Text style={styles.debugValue} numberOfLines={1}>
-                  {advertisingId || '未获取'}
+                  {advertisingId || 'N/A'}
                 </Text>
               </View>
               
@@ -397,7 +473,7 @@ export default function HomeScreen() {
                 <View style={styles.debugStatusRow}>
                   <Text style={styles.debugLabel}>IDFV:</Text>
                   <Text style={styles.debugValue} numberOfLines={1}>
-                    {idfv || '未获取'}
+                    {idfv || 'N/A'}
                   </Text>
                 </View>
               )}
@@ -405,40 +481,40 @@ export default function HomeScreen() {
               {/* 故障排除指南 */}
               {!advertisingId && permissionStatus === PermissionStatus.GRANTED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>🔍 故障排除</Text>
-                  <Text style={styles.troubleshootText}>权限已授予但IDFA为空，请检查：</Text>
-                  <Text style={styles.troubleshootItem}>1. 是否在真机上测试（模拟器不支持IDFA）</Text>
-                  <Text style={styles.troubleshootItem}>2. 设置 → 隐私 → Apple广告 → 个性化广告是否关闭</Text>
-                  <Text style={styles.troubleshootItem}>3. 设置 → 隐私 → 跟踪 → 本App是否开启</Text>
-                  <Text style={styles.troubleshootItem}>4. 尝试重启App或重新授权</Text>
+                  <Text style={styles.troubleshootTitle}>🔍 {t('debug.troubleTitle')}</Text>
+                  <Text style={styles.troubleshootText}>{t('debug.troubleIntro')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble1')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble2')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble3')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble4')}</Text>
                 </View>
               )}
               
               {permissionStatus === PermissionStatus.DENIED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>💡 如何开启权限</Text>
-                  <Text style={styles.troubleshootItem}>1. 打开"设置"App</Text>
-                  <Text style={styles.troubleshootItem}>2. 下滑找到本App (Device ID)</Text>
-                  <Text style={styles.troubleshootItem}>3. 点击进入App设置</Text>
-                  <Text style={styles.troubleshootItem}>4. 开启"允许跟踪"选项</Text>
-                  <Text style={styles.troubleshootItem}>5. 返回App重新获取</Text>
+                  <Text style={styles.troubleshootTitle}>💡 {t('debug.enableTitle')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable1')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable2')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable3')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable4')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable5')}</Text>
                 </View>
               )}
               
               {permissionStatus === PermissionStatus.UNDETERMINED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>📌 提示</Text>
-                  <Text style={styles.troubleshootText}>点击上方"获取权限"按钮请求授权</Text>
+                  <Text style={styles.troubleshootTitle}>📌 {t('debug.tipTitle')}</Text>
+                  <Text style={styles.troubleshootText}>{t('debug.tipText')}</Text>
                 </View>
               )}
               
-              <Text style={styles.debugSectionTitle}>📋 详细日志:</Text>
+              <Text style={styles.debugSectionTitle}>📋 {t('debug.logs')}</Text>
               <ScrollView style={styles.debugLogScroll} nestedScrollEnabled>
                 {debugInfo.map((info, index) => (
                   <Text key={index} style={styles.debugLogText}>{info}</Text>
                 ))}
                 {debugInfo.length === 0 && (
-                  <Text style={styles.debugLogText}>暂无日志</Text>
+                  <Text style={styles.debugLogText}>{t('debug.noLogs')}</Text>
                 )}
               </ScrollView>
               
@@ -447,7 +523,7 @@ export default function HomeScreen() {
                   style={[styles.debugActionBtn, styles.debugCopyBtn]}
                   onPress={() => copyToClipboard(debugInfo.join('\n'))}
                 >
-                  <Text style={styles.debugCopyText}>📋 复制日志</Text>
+                  <Text style={styles.debugCopyText}>📋 {t('debug.copyLogs')}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -455,13 +531,13 @@ export default function HomeScreen() {
                   onPress={() => {
                     Sentry.addBreadcrumb({
                       category: 'user_action',
-                      message: '用户点击重新检测按钮',
+                      message: 'User tapped retry',
                       level: 'info',
                     });
                     requestPermission();
                   }}
                 >
-                  <Text style={styles.debugRefreshText}>🔄 重新检测</Text>
+                  <Text style={styles.debugRefreshText}>🔄 {t('debug.retry')}</Text>
                 </TouchableOpacity>
               </View>
               
@@ -471,12 +547,30 @@ export default function HomeScreen() {
                   style={[styles.debugActionBtn, styles.debugReportBtn, { marginTop: 12 }]}
                   onPress={reportIssue}
                 >
-                  <Text style={styles.debugReportText}>🐛 报告问题到 Sentry</Text>
+                  <Text style={styles.debugReportText}>🐛 {t('debug.reportIssue')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
+
+          <TouchableOpacity
+            style={styles.hidePanelBtn}
+            onPress={hideDebugPanelCompletely}
+            accessibilityRole="button"
+          >
+            <Text style={styles.hidePanelText}>{t('debug.hidePanel')}</Text>
+          </TouchableOpacity>
         </View>
+        )}
+
+        {/* About link → About → Credits (attribution moved off home) */}
+        <TouchableOpacity
+          onPress={() => router.push('/about')}
+          style={styles.aboutLinkWrap}
+          accessibilityRole="link"
+        >
+          <Text style={styles.aboutLink}>{t('home.about')}</Text>
+        </TouchableOpacity>
 
       </ScrollView>
 
@@ -531,18 +625,30 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#000000',
   },
-  shareButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
+  titleTapTarget: {
+    flexGrow: 1,
+    flexShrink: 1,
+    marginRight: 8,
   },
-  shareIcon: {
-    fontSize: 18,
-    fontWeight: '600',
+  titleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+    gap: 6,
+  },
+  titleActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 4,
+  },
+  titleActionText: {
     color: '#007AFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   // Cards Common
@@ -558,13 +664,39 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  // Hero Card
+  // Hero Card — image on top, white info panel below (no blue under IDFA)
   heroCard: {
-    height: 420,
+    overflow: 'hidden',
+  },
+  heroCardSplit: {
+    height: undefined,
   },
   heroImage: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  heroImageTop: {
+    // height applied via PatternHeader; padding insets the tag only
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    padding: 16,
+    width: '100%',
+  },
+  heroImageTag: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  heroImageTagText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  heroInfoPanel: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
   },
   heroGradient: {
     height: '50%',
@@ -602,9 +734,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     alignSelf: 'flex-start',
-    backdropFilter: 'blur(10px)',
   },
   heroButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  heroSubtitleDark: {
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  heroTitleDark: {
+    color: '#000000',
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  heroDescriptionDark: {
+    color: '#3A3A3C',
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  heroButtonDark: {
+    marginTop: 14,
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  heroButtonTextDark: {
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
@@ -638,17 +801,6 @@ const styles = StyleSheet.create({
   listSubtitle: {
     fontSize: 13,
     color: '#8E8E93',
-  },
-  listActionBtn: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  listActionText: {
-    color: '#007AFF',
-    fontWeight: '700',
-    fontSize: 13,
   },
   listContent: {
     gap: 16,
@@ -693,10 +845,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   featureImage: {
-    height: 200,
+    // height applied via PatternHeader
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     padding: 20,
+    width: '100%',
   },
   featureTag: {
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -923,5 +1076,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 13,
+  },
+
+  aboutLinkWrap: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  aboutLink: {
+    fontSize: 15,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  hidePanelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#1C1C1E',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#3A3A3C',
+  },
+  hidePanelText: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '500',
   },
 });

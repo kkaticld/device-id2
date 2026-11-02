@@ -1,0 +1,5 @@
+/** Hero pattern: Hexagon Monster (pattern.monster) */
+export const name = "Hexagon Monster";
+export const license = "pattern.monster";
+export const xml = "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='660' viewBox='0 0 1200 660'><defs><linearGradient id='g-hexagonmonster' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#E9F0FB'/><stop offset='1' stop-color='#C9D8F2'/></linearGradient><pattern id='p-hexagonmonster' patternUnits='userSpaceOnUse' width='29' height='50.115' patternTransform='scale(4)'><g fill='none' stroke='#2F6BFF' stroke-width='0.6' stroke-linecap='round' stroke-linejoin='round' opacity='0.22'><path d='M14.498 16.858L0 8.488.002-8.257l14.5-8.374L29-8.26l-.002 16.745zm0 50.06L0 58.548l.002-16.745 14.5-8.373L29 41.8l-.002 16.744zM28.996 41.8l-14.498-8.37.002-16.744L29 8.312l14.498 8.37-.002 16.745zm-29 0l-14.498-8.37.002-16.744L0 8.312l14.498 8.37-.002 16.745z'/></g></pattern></defs><rect width='100%' height='100%' fill='url(#g-hexagonmonster)'/><rect width='100%' height='100%' fill='url(#p-hexagonmonster)'/></svg>";
+export default xml;

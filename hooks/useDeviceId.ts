@@ -68,14 +68,14 @@ export function useDeviceId(): DeviceInfo {
   }, []);
 
   const getIds = useCallback(async () => {
-    console.log('\n========== 🔍 开始获取设备信息 ==========\n');
-    debugLog('INIT', '开始获取设备信息');
-    addDebugInfo('🔄 开始获取设备信息');
+    console.log('\n========== 🔍 Loading device info ==========\n');
+    debugLog('INIT', 'Loading device info');
+    addDebugInfo('🔄 Loading device info');
     
-    // Sentry: 添加面包屑 - 开始获取设备信息
+    // Sentry: 添加面包屑 - Loading device info
     Sentry.addBreadcrumb({
       category: 'idfa',
-      message: '开始获取设备信息',
+      message: 'Loading device info',
       level: 'info',
     });
     
@@ -84,7 +84,7 @@ export function useDeviceId(): DeviceInfo {
     
     try {
       // Step 1: Get Application Info (cross-platform)
-      console.log('\n--- Step 1: 获取应用信息 ---');
+      console.log('\n--- Step 1: Get app info ---');
       debugLog('APP_INFO', 'Application.applicationId', Application.applicationId);
       debugLog('APP_INFO', 'Application.nativeApplicationVersion', Application.nativeApplicationVersion);
       debugLog('APP_INFO', 'Application.nativeBuildVersion', Application.nativeBuildVersion);
@@ -93,12 +93,12 @@ export function useDeviceId(): DeviceInfo {
       setNativeVersion(Application.nativeApplicationVersion);
       setNativeBuildVersion(Application.nativeBuildVersion);
       addDebugInfo(`✅ App ID: ${Application.applicationId}`);
-      addDebugInfo(`✅ 版本: ${Application.nativeApplicationVersion} (${Application.nativeBuildVersion})`);
+      addDebugInfo(`✅ Version: ${Application.nativeApplicationVersion} (${Application.nativeBuildVersion})`);
       
-      // Sentry: 记录应用信息
+      // Sentry: 记录App Info
       Sentry.addBreadcrumb({
         category: 'app_info',
-        message: '获取应用信息成功',
+        message: 'Got app info',
         data: {
           bundle_id: Application.applicationId,
           version: Application.nativeApplicationVersion,
@@ -108,45 +108,45 @@ export function useDeviceId(): DeviceInfo {
       });
       
       // Step 2: Platform-specific IDs
-      console.log('\n--- Step 2: 获取平台特定ID ---');
+      console.log('\n--- Step 2: Get platform ID ---');
       debugLog('PLATFORM', 'Platform.OS', Platform.OS);
       debugLog('PLATFORM', 'Platform.Version', Platform.Version);
-      addDebugInfo(`📱 平台: ${Platform.OS} ${Platform.Version}`);
+      addDebugInfo(`📱 Platform: ${Platform.OS} ${Platform.Version}`);
       
       if (Platform.OS === 'ios') {
         // iOS: Get IDFV
-        console.log('\n--- Step 3 (iOS): 获取IDFV ---');
-        debugLog('IOS', '正在调用 Application.getIosIdForVendorAsync()...');
-        addDebugInfo('🔄 正在获取IDFV...');
+        console.log('\n--- Step 3 (iOS): Get IDFV ---');
+        debugLog('IOS', 'Calling Application.getIosIdForVendorAsync()...');
+        addDebugInfo('🔄 Getting IDFV...');
         
         Sentry.addBreadcrumb({
           category: 'idfa',
-          message: '开始获取IDFV',
+          message: 'Start getting IDFV',
           level: 'info',
         });
         
         try {
           const vendorId = await Application.getIosIdForVendorAsync();
-          debugLog('IOS', 'IDFV获取成功', vendorId);
+          debugLog('IOS', 'Got IDFV', { hasValue: !!vendorId });
           setIdfv(vendorId);
           if (vendorId) {
-            addDebugInfo(`✅ IDFV: ${vendorId}`);
+            addDebugInfo('✅ IDFV: obtained');
             Sentry.addBreadcrumb({
               category: 'idfa',
-              message: 'IDFV获取成功',
+              message: 'Got IDFV',
               data: { has_value: true },
               level: 'info',
             });
           } else {
-            addDebugInfo('⚠️ IDFV为空值');
-            errorLog('IOS', 'IDFV返回null或undefined');
-            Sentry.captureMessage('IDFV为空值', {
+            addDebugInfo('⚠️ IDFV empty');
+            errorLog('IOS', 'IDFV returned null');
+            Sentry.captureMessage('IDFV empty', {
               level: 'warning',
               tags: { feature: 'idfa', step: 'get_idfv' },
             });
           }
         } catch (idfvError: any) {
-          const errorMsg = `IDFV获取失败: ${idfvError?.message || String(idfvError)}`;
+          const errorMsg = `Failed to get IDFV: ${idfvError?.message || String(idfvError)}`;
           errorLog('IOS', errorMsg, idfvError);
           addDebugInfo(`❌ ${errorMsg}`);
           setLastError(errorMsg);
@@ -164,22 +164,22 @@ export function useDeviceId(): DeviceInfo {
         }
       } else if (Platform.OS === 'android') {
         // Android: Get Android ID
-        console.log('\n--- Step 3 (Android): 获取Android ID ---');
-        debugLog('ANDROID', '正在调用 Application.getAndroidId()...');
-        addDebugInfo('🔄 正在获取Android ID...');
+        console.log('\n--- Step 3 (Android): Get Android ID ---');
+        debugLog('ANDROID', 'Calling Application.getAndroidId()...');
+        addDebugInfo('🔄 Getting Android ID...');
         
         try {
           const deviceId = Application.getAndroidId();
-          debugLog('ANDROID', 'Android ID获取成功', deviceId);
+          debugLog('ANDROID', 'Got Android ID', { hasValue: !!deviceId });
           setAndroidId(deviceId);
           if (deviceId) {
-            addDebugInfo(`✅ Android ID: ${deviceId}`);
+            addDebugInfo('✅ Android ID: obtained');
           } else {
-            addDebugInfo('⚠️ Android ID为空值');
-            errorLog('ANDROID', 'Android ID返回null或undefined');
+            addDebugInfo('⚠️ Android ID empty');
+            errorLog('ANDROID', 'Android ID returned null');
           }
         } catch (androidError: any) {
-          const errorMsg = `Android ID获取失败: ${androidError?.message || String(androidError)}`;
+          const errorMsg = `Failed to get Android ID: ${androidError?.message || String(androidError)}`;
           errorLog('ANDROID', errorMsg, androidError);
           addDebugInfo(`❌ ${errorMsg}`);
           setLastError(errorMsg);
@@ -187,27 +187,27 @@ export function useDeviceId(): DeviceInfo {
       }
 
       // Step 4: Get Advertising ID (IDFA on iOS, GAID on Android)
-      console.log('\n--- Step 4: 检查追踪权限 ---');
-      debugLog('TRACKING', '正在调用 TrackingTransparency.getTrackingPermissionsAsync()...');
-      addDebugInfo('🔄 检查追踪权限状态...');
+      console.log('\n--- Step 4: Check tracking permission ---');
+      debugLog('TRACKING', 'Calling TrackingTransparency.getTrackingPermissionsAsync()...');
+      addDebugInfo('🔄 Checking tracking permission...');
       
       Sentry.addBreadcrumb({
         category: 'idfa',
-        message: '开始检查追踪权限',
+        message: 'Start checking tracking permission',
         level: 'info',
       });
       
       try {
         const permissionResult = await TrackingTransparency.getTrackingPermissionsAsync();
         const { status } = permissionResult;
-        debugLog('TRACKING', '权限状态', {
+        debugLog('TRACKING', 'Permission status', {
           status,
           statusName: getStatusName(status)
         });
         setPermissionStatus(status);
-        addDebugInfo(`📋 权限状态: ${getStatusName(status)} (值=${status})`);
+        addDebugInfo(`📋 Permission: ${getStatusName(status)} (value=${status})`);
         
-        // Sentry: 记录权限状态
+        // Sentry: 记录Permission status
         Sentry.setContext('idfa_permission', {
           status,
           status_name: getStatusName(status),
@@ -216,7 +216,7 @@ export function useDeviceId(): DeviceInfo {
         
         Sentry.addBreadcrumb({
           category: 'idfa',
-          message: '权限状态检查完成',
+          message: 'Permission check done',
           data: {
             status,
             status_name: getStatusName(status),
@@ -225,29 +225,29 @@ export function useDeviceId(): DeviceInfo {
         });
         
         if (status === TrackingTransparency.PermissionStatus.GRANTED) {
-          console.log('\n--- Step 5: 获取广告ID ---');
-          debugLog('TRACKING', '✅ 权限已授予，正在调用 getAdvertisingId()...');
-          addDebugInfo('✅ 权限已授予，正在获取IDFA...');
+          console.log('\n--- Step 5: Get advertising ID ---');
+          debugLog('TRACKING', '✅ Permission granted, calling getAdvertisingId()...');
+          addDebugInfo('✅ Permission granted, reading IDFA...');
           
           Sentry.addBreadcrumb({
             category: 'idfa',
-            message: '权限已授予，开始获取IDFA',
+            message: 'Permission granted, getting IDFA',
             level: 'info',
           });
           
           try {
             const adId = await TrackingTransparency.getAdvertisingId();
-            debugLog('TRACKING', 'getAdvertisingId() 返回结果', { adId, type: typeof adId, isNull: adId === null });
+            debugLog('TRACKING', 'getAdvertisingId() result', { hasValue: !!adId });
             
             if (adId) {
               setAdvertisingId(adId);
-              addDebugInfo(`✅ IDFA获取成功: ${adId}`);
-              console.log(`\n✨ 成功获取IDFA: ${adId}\n`);
+              addDebugInfo('✅ IDFA: obtained');
+              console.log('\n✨ IDFA obtained\n');
               
               // Sentry: 成功获取IDFA
               Sentry.addBreadcrumb({
                 category: 'idfa',
-                message: 'IDFA获取成功',
+                message: 'Got IDFA',
                 data: { has_value: true },
                 level: 'info',
               });
@@ -258,15 +258,15 @@ export function useDeviceId(): DeviceInfo {
               });
             } else {
               setAdvertisingId(null);
-              addDebugInfo('⚠️ IDFA为空值（可能原因见下方）');
-              addDebugInfo('💡 检查项:');
-              addDebugInfo('  1. 设置->隐私->跟踪 是否打开');
-              addDebugInfo('  2. 设置->隐私->Apple广告 是否关闭');
-              addDebugInfo('  3. 是否使用真机测试（模拟器不支持）');
-              errorLog('TRACKING', 'IDFA返回空值，可能是以下原因之一：1)用户关闭了广告跟踪 2)设备限制 3)模拟器环境');
+              addDebugInfo('⚠️ IDFA empty (see below)');
+              addDebugInfo('💡 Check:');
+              addDebugInfo('  1. Settings > Privacy > Tracking is on');
+              addDebugInfo('  2. Settings > Privacy > Apple Advertising is off');
+              addDebugInfo('  3. Testing on a real device (simulator unsupported)');
+              errorLog('TRACKING', 'IDFA empty: 1) ad tracking off 2) device restriction 3) simulator');
               
               // Sentry: IDFA为空警告
-              Sentry.captureMessage('IDFA为空值（权限已授予）', {
+              Sentry.captureMessage('IDFA empty (permission granted)', {
                 level: 'warning',
                 tags: { feature: 'idfa', step: 'get_advertising_id' },
                 contexts: {
@@ -275,19 +275,19 @@ export function useDeviceId(): DeviceInfo {
                     platform: Platform.OS,
                     platform_version: Platform.Version,
                     possible_reasons: [
-                      '用户关闭了个性化广告',
-                      '设备限制',
-                      '模拟器环境'
+                      'personalized ads off',
+                      'device restriction',
+                      'simulator'
                     ]
                   }
                 }
               });
             }
           } catch (adIdError: any) {
-            const errorMsg = `广告ID API调用失败: ${adIdError?.message || String(adIdError)}`;
+            const errorMsg = `Advertising ID API failed: ${adIdError?.message || String(adIdError)}`;
             errorLog('TRACKING', errorMsg, adIdError);
             addDebugInfo(`❌ ${errorMsg}`);
-            addDebugInfo('💡 可能原因: API调用异常、权限配置问题');
+            addDebugInfo('💡 Possible cause: API error or permission config');
             setLastError(errorMsg);
             
             // Sentry: 捕获IDFA获取错误
@@ -303,12 +303,12 @@ export function useDeviceId(): DeviceInfo {
             });
           }
         } else {
-          console.log('\n⚠️ 权限未授予，无法获取IDFA');
-          debugLog('TRACKING', '权限未授予', { status, statusName: getStatusName(status) });
-          addDebugInfo(`❌ 权限未授予: ${getStatusName(status)}`);
+          console.log('\n⚠️ Permission not granted, cannot read IDFA');
+          debugLog('TRACKING', 'Permission not granted', { status, statusName: getStatusName(status) });
+          addDebugInfo(`❌ Not granted: ${getStatusName(status)}`);
           
-          // Sentry: 记录权限未授予情况
-          Sentry.captureMessage('IDFA权限未授予', {
+          // Sentry: 记录Permission not granted情况
+          Sentry.captureMessage('IDFA permission not granted', {
             level: status === TrackingTransparency.PermissionStatus.DENIED ? 'warning' : 'info',
             tags: { feature: 'idfa', step: 'check_permission' },
             contexts: {
@@ -322,20 +322,20 @@ export function useDeviceId(): DeviceInfo {
           });
           
           if (status === TrackingTransparency.PermissionStatus.DENIED) {
-            addDebugInfo('📌 用户已拒绝权限');
-            addDebugInfo('💡 解决方法: 设置->隐私与安全性->跟踪->允许本应用');
+            addDebugInfo('📌 Permission denied');
+            addDebugInfo('💡 Fix: Settings > Privacy & Security > Tracking > allow this app');
           } else if (status === TrackingTransparency.PermissionStatus.UNDETERMINED) {
-            addDebugInfo('📌 用户尚未做出选择');
-            addDebugInfo('💡 建议: 点击"获取权限"按钮请求授权');
+            addDebugInfo('📌 Not chosen yet');
+            addDebugInfo('💡 Tip: tap "Allow Access" to request permission');
           } else {
-            addDebugInfo(`📌 未知状态: ${status}`);
+            addDebugInfo(`📌 Unknown status: ${status}`);
           }
         }
       } catch (trackingError: any) {
-        const errorMsg = `追踪权限API调用失败: ${trackingError?.message || String(trackingError)}`;
+        const errorMsg = `Tracking permission API failed: ${trackingError?.message || String(trackingError)}`;
         errorLog('TRACKING', errorMsg, trackingError);
         addDebugInfo(`❌ ${errorMsg}`);
-        addDebugInfo('💡 可能原因: info.plist配置缺失、SDK版本问题');
+        addDebugInfo('💡 Possible cause: Info.plist config or SDK version');
         setLastError(errorMsg);
         
         // Sentry: 捕获权限检查错误
@@ -344,14 +344,14 @@ export function useDeviceId(): DeviceInfo {
           contexts: {
             error_debug: {
               platform: Platform.OS,
-              possible_causes: ['info.plist配置缺失', 'SDK版本问题', 'API调用异常']
+              possible_causes: ['Info.plist missing config', 'SDK version issue', 'API call error']
             }
           }
         });
       }
       
     } catch (error: any) {
-      const errorMsg = `获取设备信息时发生未知错误: ${error?.message || String(error)}`;
+      const errorMsg = `Unexpected error loading device info: ${error?.message || String(error)}`;
       errorLog('FATAL', errorMsg, error);
       addDebugInfo(`❌ ${errorMsg}`);
       setLastError(errorMsg);
@@ -368,9 +368,9 @@ export function useDeviceId(): DeviceInfo {
       });
     }
     
-    console.log('\n========== ✅ 设备信息获取完成 ==========\n');
-    debugLog('INIT', '设备信息获取完成');
-    addDebugInfo('✅ 设备信息获取完成');
+    console.log('\n========== ✅ Device info loaded ==========\n');
+    debugLog('INIT', 'Device info loaded');
+    addDebugInfo('✅ Device info loaded');
     setIsLoading(false);
   }, [addDebugInfo]);
 
@@ -379,14 +379,14 @@ export function useDeviceId(): DeviceInfo {
   }, [getIds]);
 
   const requestPermission = useCallback(async () => {
-    console.log('\n========== 🔐 请求追踪权限 ==========\n');
-    debugLog('REQUEST_PERMISSION', '开始请求追踪权限...');
-    addDebugInfo('🔄 正在请求追踪权限...');
+    console.log('\n========== 🔐 Request tracking permission ==========\n');
+    debugLog('REQUEST_PERMISSION', 'Requesting tracking permission...');
+    addDebugInfo('🔄 Requesting tracking permission...');
     
-    // Sentry: 用户点击获取权限按钮
+    // Sentry: User tapped allow access
     Sentry.addBreadcrumb({
       category: 'user_action',
-      message: '用户点击获取权限按钮',
+      message: 'User tapped allow access',
       level: 'info',
     });
     
@@ -394,20 +394,20 @@ export function useDeviceId(): DeviceInfo {
     setLastError(null);
     
     try {
-      debugLog('REQUEST_PERMISSION', '调用 TrackingTransparency.requestTrackingPermissionsAsync()...');
+      debugLog('REQUEST_PERMISSION', 'Calling TrackingTransparency.requestTrackingPermissionsAsync()...');
       const permissionResult = await TrackingTransparency.requestTrackingPermissionsAsync();
       const { status } = permissionResult;
-      debugLog('REQUEST_PERMISSION', '权限请求完成', {
+      debugLog('REQUEST_PERMISSION', 'Permission request done', {
         status,
         statusName: getStatusName(status)
       });
       setPermissionStatus(status);
-      addDebugInfo(`📋 权限请求结果: ${getStatusName(status)} (值=${status})`);
+      addDebugInfo(`📋 Request result: ${getStatusName(status)} (value=${status})`);
       
       // Sentry: 记录权限请求结果
       Sentry.addBreadcrumb({
         category: 'idfa',
-        message: '权限请求完成',
+        message: 'Permission request done',
         data: {
           status,
           status_name: getStatusName(status),
@@ -417,55 +417,55 @@ export function useDeviceId(): DeviceInfo {
       });
       
       if (status === TrackingTransparency.PermissionStatus.GRANTED) {
-        console.log('\n✅ 权限已授予，正在获取IDFA...');
-        debugLog('REQUEST_PERMISSION', '权限已授予，正在调用 getAdvertisingId()...');
-        addDebugInfo('✅ 权限已授予，正在获取IDFA...');
+        console.log('\n✅ Permission granted, reading IDFA...');
+        debugLog('REQUEST_PERMISSION', 'Permission granted, calling getAdvertisingId()...');
+        addDebugInfo('✅ Permission granted, reading IDFA...');
         
         try {
           const adId = await TrackingTransparency.getAdvertisingId();
-          debugLog('REQUEST_PERMISSION', 'getAdvertisingId() 返回结果', { adId, type: typeof adId });
+          debugLog('REQUEST_PERMISSION', 'getAdvertisingId() result', { hasValue: !!adId });
           
           if (adId) {
             setAdvertisingId(adId);
-            addDebugInfo(`✅ IDFA获取成功: ${adId}`);
-            console.log(`\n✨ 成功获取IDFA: ${adId}\n`);
+            addDebugInfo('✅ IDFA: obtained');
+            console.log('\n✨ IDFA obtained\n');
             
             // Sentry: 成功获取IDFA
             Sentry.addBreadcrumb({
               category: 'idfa',
-              message: 'IDFA请求后获取成功',
+              message: 'Got IDFA after request',
               data: { has_value: true },
               level: 'info',
             });
           } else {
             setAdvertisingId(null);
-            addDebugInfo('⚠️ IDFA为空值');
-            addDebugInfo('💡 请检查: 设置->隐私->Apple广告 是否关闭');
-            errorLog('REQUEST_PERMISSION', 'IDFA为空，可能用户关闭了个性化广告');
+            addDebugInfo('⚠️ IDFA empty');
+            addDebugInfo('💡 Check: Settings > Privacy > Apple Advertising');
+            errorLog('REQUEST_PERMISSION', 'IDFA empty, personalized ads may be off');
             
             // Sentry: 权限授予但IDFA为空
-            Sentry.captureMessage('权限授予后IDFA仍为空', {
+            Sentry.captureMessage('IDFA empty after permission granted', {
               level: 'warning',
               tags: { feature: 'idfa', step: 'request_permission' },
             });
           }
         } catch (adIdError: any) {
-          const errorMsg = `广告ID API调用失败: ${adIdError?.message || String(adIdError)}`;
+          const errorMsg = `Advertising ID API failed: ${adIdError?.message || String(adIdError)}`;
           errorLog('REQUEST_PERMISSION', errorMsg, adIdError);
           addDebugInfo(`❌ ${errorMsg}`);
           setLastError(errorMsg);
           
-          // Sentry: IDFA获取失败
+          // Sentry: IDFAFailed
           Sentry.captureException(adIdError, {
             tags: { feature: 'idfa', step: 'request_permission_get_id' },
           });
         }
       } else {
-        console.log('\n❌ 权限未授予');
-        addDebugInfo(`❌ 权限被拒绝或受限: ${getStatusName(status)}`);
+        console.log('\n❌ Permission not granted');
+        addDebugInfo(`❌ Denied or restricted: ${getStatusName(status)}`);
         
         // Sentry: 用户拒绝权限
-        Sentry.captureMessage('用户拒绝IDFA权限请求', {
+        Sentry.captureMessage('User denied IDFA permission', {
           level: 'info',
           tags: { feature: 'idfa', step: 'request_permission', user_action: 'denied' },
           contexts: {
@@ -477,17 +477,17 @@ export function useDeviceId(): DeviceInfo {
         });
         
         if (status === TrackingTransparency.PermissionStatus.DENIED) {
-          addDebugInfo('📌 用户拒绝了权限请求');
-          addDebugInfo('💡 解决方法: 设置->隐私与安全性->跟踪->允许本应用');
+          addDebugInfo('📌 User denied the request');
+          addDebugInfo('💡 Fix: Settings > Privacy & Security > Tracking > allow this app');
         } else {
-          addDebugInfo(`📌 权限状态: ${getStatusName(status)}`);
+          addDebugInfo(`📌 Permission: ${getStatusName(status)}`);
         }
       }
     } catch (error: any) {
-      const errorMsg = `请求权限时发生错误: ${error?.message || String(error)}`;
+      const errorMsg = `Error requesting permission: ${error?.message || String(error)}`;
       errorLog('REQUEST_PERMISSION', errorMsg, error);
       addDebugInfo(`❌ ${errorMsg}`);
-      addDebugInfo('💡 可能原因: info.plist配置问题、系统限制');
+      addDebugInfo('💡 Possible cause: Info.plist config or system restriction');
       setLastError(errorMsg);
       
       // Sentry: 权限请求错误
@@ -495,13 +495,13 @@ export function useDeviceId(): DeviceInfo {
         tags: { feature: 'idfa', step: 'request_permission', severity: 'error' },
         contexts: {
           error_debug: {
-            possible_causes: ['info.plist配置问题', '系统限制', 'API异常']
+            possible_causes: ['Info.plist config issue', 'system restriction', 'API error']
           }
         }
       });
     }
     
-    console.log('\n========== ✅ 权限请求完成 ==========\n');
+    console.log('\n========== ✅ Permission request done ==========\n');
     setIsLoading(false);
   }, [addDebugInfo]);
 
@@ -520,16 +520,16 @@ export function useDeviceId(): DeviceInfo {
   };
 }
 
-// 辅助函数：获取权限状态名称
+// 辅助函数：获取Permission status名称
 function getStatusName(status: TrackingTransparency.PermissionStatus): string {
   switch (status) {
     case TrackingTransparency.PermissionStatus.GRANTED:
-      return '已授权';
+      return 'Allowed';
     case TrackingTransparency.PermissionStatus.DENIED:
-      return '已拒绝';
+      return 'Denied';
     case TrackingTransparency.PermissionStatus.UNDETERMINED:
-      return '未确定';
+      return 'Not determined';
     default:
-      return `未知状态(${status})`;
+      return `Unknown (${status})`;
   }
 }

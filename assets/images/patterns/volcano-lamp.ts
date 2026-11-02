@@ -1,0 +1,5 @@
+/** Hero pattern: Volcano Lamp (heropatterns) */
+export const name = "Volcano Lamp";
+export const license = "heropatterns";
+export const xml = "<svg xmlns='http://www.w3.org/2000/svg' width='1290' height='560' viewBox='0 0 1290 560'><defs><linearGradient id='g-volcanolamp' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#3568E8'/><stop offset='1' stop-color='#1E4BC8'/></linearGradient><pattern id='p-volcanolamp' patternUnits='userSpaceOnUse' width='48' height='32' patternTransform='scale(2.2)'><g fill='#fff' fill-opacity='0.22'><path d=\"M27 32c0-3.314 2.686-6 6-6 5.523 0 10-4.477 10-10S38.523 6 33 6c-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 6.627 0 12 5.373 12 12s-5.373 12-12 12c-2.21 0-4 1.79-4 4h-2zm-6 0c0-3.314-2.686-6-6-6-5.523 0-10-4.477-10-10S9.477 6 15 6c3.314 0 6-2.686 6-6h-2c0 2.21-1.79 4-4 4C8.373 4 3 9.373 3 16s5.373 12 12 12c2.21 0 4 1.79 4 4h2z\"/></g></pattern></defs><rect width='100%' height='100%' fill='url(#g-volcanolamp)'/><rect width='100%' height='100%' fill='url(#p-volcanolamp)'/></svg>";
+export default xml;

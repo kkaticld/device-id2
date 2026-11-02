@@ -193,34 +193,31 @@ export default function HomeScreen() {
       <TouchableOpacity 
         activeOpacity={0.9} 
         onPress={() => id && copyToClipboard(id)}
-        style={[styles.cardContainer, styles.heroCard]}
+        style={[styles.cardContainer, styles.heroCard, styles.heroCardSplit]}
       >
-        <ImageBackground source={HERO_BG} style={styles.heroImage} imageStyle={{ borderRadius: 14 }}>
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroContent}>
-              <Text style={styles.heroSubtitle}>DEVICE IDENTIFIER</Text>
-              <Text style={styles.heroTitle}>{title}</Text>
-              <Text style={styles.heroDescription} numberOfLines={2}>
-                {hasPermission ? (id || 'Loading...') : 'Permission required to read this identifier'}
-              </Text>
-              
-              {!hasPermission && (
-                <TouchableOpacity 
-                  style={styles.heroButton}
-                  onPress={(e: any) => {
-                    e.stopPropagation();
-                    requestPermission();
-                  }}
-                >
-                  <Text style={styles.heroButtonText}>Allow Access</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </LinearGradient>
+        <ImageBackground source={HERO_BG} style={styles.heroImageTop} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+          <View style={styles.heroImageTag}>
+            <Text style={styles.heroImageTagText}>{title}</Text>
+          </View>
         </ImageBackground>
+        <View style={styles.heroInfoPanel}>
+          <Text style={styles.heroSubtitleDark}>DEVICE IDENTIFIER</Text>
+          <Text style={styles.heroTitleDark}>{title}</Text>
+          <Text style={styles.heroDescriptionDark} numberOfLines={2}>
+            {hasPermission ? (id || 'Loading...') : 'Permission required to read this identifier'}
+          </Text>
+          {!hasPermission && (
+            <TouchableOpacity 
+              style={styles.heroButtonDark}
+              onPress={(e: any) => {
+                e.stopPropagation();
+                requestPermission();
+              }}
+            >
+              <Text style={styles.heroButtonTextDark}>Allow Access</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -558,13 +555,38 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  // Hero Card
+  // Hero Card — image on top, white info panel below (no blue under IDFA)
   heroCard: {
-    height: 420,
+    overflow: 'hidden',
+  },
+  heroCardSplit: {
+    height: undefined,
   },
   heroImage: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  heroImageTop: {
+    height: 220,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    padding: 16,
+  },
+  heroImageTag: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  heroImageTagText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  heroInfoPanel: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
   },
   heroGradient: {
     height: '50%',
@@ -604,6 +626,38 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   heroButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  heroSubtitleDark: {
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  heroTitleDark: {
+    color: '#000000',
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  heroDescriptionDark: {
+    color: '#3A3A3C',
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  heroButtonDark: {
+    marginTop: 14,
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  heroButtonTextDark: {
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,

@@ -10,6 +10,22 @@ import * as Sentry from '@sentry/react-native';
 
 import { useDeviceId } from '@/hooks/useDeviceId';
 
+// Hero Patterns (CC BY 4.0, Steve Schoger) + pattern.monster (MIT) — see Credits footer
+const HERO_PATTERNS = [
+  require('@/assets/images/patterns/topography.png'),
+  require('@/assets/images/patterns/circuit-board.png'),
+  require('@/assets/images/patterns/graph-paper.png'),
+  require('@/assets/images/patterns/architect.png'),
+  require('@/assets/images/patterns/hexagons.png'),
+  require('@/assets/images/patterns/hideout.png'),
+  require('@/assets/images/patterns/connections.png'),
+  require('@/assets/images/patterns/diagonal-lines.png'),
+  require('@/assets/images/patterns/overlapping-circles.png'),
+  require('@/assets/images/patterns/signal.png'),
+  require('@/assets/images/patterns/waves.png'),
+  require('@/assets/images/patterns/hexagon-monster.png'),
+];
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   
@@ -39,9 +55,21 @@ export default function HomeScreen() {
   }, []);
   
   // Bundled local images (no third-party image requests)
-  const HERO_BG = require('@/assets/images/hero-bg.png');
   const APP_ICON_IMG = require('@/assets/images/icon.png');
-  const FEATURE_IMG = require('@/assets/images/hero-bg.png');
+
+  // Independent random pattern per header image area (re-roll on remount / cold open)
+  const heroPattern = useMemo(
+    () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)],
+    [],
+  );
+  const uaPattern = useMemo(
+    () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)],
+    [],
+  );
+  const ipPattern = useMemo(
+    () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)],
+    [],
+  );
   
   const { 
     advertisingId, 
@@ -184,7 +212,7 @@ export default function HomeScreen() {
     );
   };
 
-  const HeroCard = () => {
+  const HeroCard = ({ source }: { source: any }) => {
     const id = Platform.OS === 'ios' ? advertisingId : advertisingId;
     const title = Platform.OS === 'ios' ? "IDFA" : "GAID";
     const hasPermission = permissionStatus === PermissionStatus.GRANTED;
@@ -195,7 +223,7 @@ export default function HomeScreen() {
         onPress={() => id && copyToClipboard(id)}
         style={[styles.cardContainer, styles.heroCard, styles.heroCardSplit]}
       >
-        <ImageBackground source={HERO_BG} style={styles.heroImageTop} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+        <ImageBackground source={source} style={styles.heroImageTop} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
           <View style={styles.heroImageTag}>
             <Text style={styles.heroImageTagText}>{title}</Text>
           </View>
@@ -264,9 +292,9 @@ export default function HomeScreen() {
     );
   };
 
-  const FeatureCard = ({ title, subtitle, value, action, actionLabel, isLoading }: any) => (
+  const FeatureCard = ({ title, subtitle, value, action, actionLabel, isLoading, source }: any) => (
     <View style={[styles.cardContainer, styles.featureCard]}>
-      <ImageBackground source={FEATURE_IMG} style={styles.featureImage} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+      <ImageBackground source={source} style={styles.featureImage} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
         <View style={styles.featureTag}>
           <Text style={styles.featureTagText}>NETWORK</Text>
         </View>
@@ -329,7 +357,7 @@ export default function HomeScreen() {
       >
         <DateHeader />
         
-        <HeroCard />
+        <HeroCard source={heroPattern} />
         
         <AppInfoCard />
         
@@ -339,6 +367,7 @@ export default function HomeScreen() {
           value={userAgent}
           action={getUserAgent}
           actionLabel="Get UA"
+          source={uaPattern}
         />
 
         <FeatureCard
@@ -348,6 +377,7 @@ export default function HomeScreen() {
           action={getIpAddress}
           actionLabel="Get IP"
           isLoading={isLoadingIp}
+          source={ipPattern}
         />
 
         {/* 调试面板 */}
@@ -473,6 +503,17 @@ export default function HomeScreen() {
               )}
             </View>
           )}
+        </View>
+
+        {/* Pattern attribution (CC BY 4.0 / MIT) */}
+        <View style={[styles.cardContainer, styles.creditsCard]}>
+          <Text style={styles.creditsTitle}>Credits</Text>
+          <Text style={styles.creditsText}>
+            Background patterns: Hero Patterns by Steve Schoger (CC BY 4.0) · heropatterns.com
+          </Text>
+          <Text style={styles.creditsText}>
+            Additional patterns: pattern.monster (MIT)
+          </Text>
         </View>
 
       </ScrollView>
@@ -976,5 +1017,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 13,
+  },
+
+  // Credits / Legal
+  creditsCard: {
+    padding: 16,
+    backgroundColor: '#F9F9FB',
+    shadowOpacity: 0.06,
+    elevation: 1,
+  },
+  creditsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginBottom: 6,
+  },
+  creditsText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#AEAEB2',
+    marginBottom: 4,
   },
 });

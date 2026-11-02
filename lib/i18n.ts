@@ -35,6 +35,7 @@ const en: Dict = {
   'debug.title': 'Debug Info',
   'debug.show': 'Show ▼',
   'debug.hide': 'Hide ▲',
+  'debug.hidePanel': 'Hide panel',
   'debug.permission': 'Permission:',
   'debug.logs': 'Logs:',
   'debug.noLogs': 'No logs yet',
@@ -81,7 +82,7 @@ const en: Dict = {
 };
 
 const zh: Dict = {
-  'home.title': '设备标识',
+  'home.title': '设备 ID',
   'home.about': '关于',
   'home.deviceIdentifier': '设备标识符',
   'home.permissionRequired': '需要授权才能读取此标识符',
@@ -112,6 +113,7 @@ const zh: Dict = {
   'debug.title': '调试信息',
   'debug.show': '显示 ▼',
   'debug.hide': '隐藏 ▲',
+  'debug.hidePanel': '隐藏面板',
   'debug.permission': '权限：',
   'debug.logs': '日志：',
   'debug.noLogs': '暂无日志',

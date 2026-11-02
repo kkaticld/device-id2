@@ -1,5 +1,5 @@
 import { PermissionStatus } from 'expo-tracking-transparency';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, Share, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,6 +76,31 @@ export default function HomeScreen() {
   } = useDeviceId();
   
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [debugUnlocked, setDebugUnlocked] = useState(false);
+  const [titleTapCount, setTitleTapCount] = useState(0);
+  const lastTitleTapAt = useRef(0);
+
+  const handleTitleTap = () => {
+    const now = Date.now();
+    const gap = now - lastTitleTapAt.current;
+    lastTitleTapAt.current = now;
+    setTitleTapCount((prev) => {
+      const next = gap < 1000 ? prev + 1 : 1;
+      if (next >= 5) {
+        setDebugUnlocked(true);
+        setShowDebugPanel(true);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const hideDebugPanelCompletely = () => {
+    setDebugUnlocked(false);
+    setShowDebugPanel(false);
+    setTitleTapCount(0);
+    lastTitleTapAt.current = 0;
+  };
   
   const [userAgent, setUserAgent] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
@@ -193,7 +218,15 @@ export default function HomeScreen() {
     return (
       <View style={styles.dateHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.dateTitle}>{t('home.title')}</Text>
+          <TouchableOpacity
+            onPress={handleTitleTap}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.title')}
+            style={styles.titleTapTarget}
+          >
+            <Text style={styles.dateTitle}>{t('home.title')}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareIcon}>↗</Text>
           </TouchableOpacity>
@@ -370,7 +403,8 @@ export default function HomeScreen() {
           pattern={ipPattern}
         />
 
-        {/* 调试面板 */}
+        {/* Debug panel — hidden until unlocked via 5 quick taps on the home title */}
+        {debugUnlocked && (
         <View style={[styles.cardContainer, styles.debugCard]}>
           <TouchableOpacity 
             style={styles.debugHeader} 
@@ -493,7 +527,16 @@ export default function HomeScreen() {
               )}
             </View>
           )}
+
+          <TouchableOpacity
+            style={styles.hidePanelBtn}
+            onPress={hideDebugPanelCompletely}
+            accessibilityRole="button"
+          >
+            <Text style={styles.hidePanelText}>{t('debug.hidePanel')}</Text>
+          </TouchableOpacity>
         </View>
+        )}
 
         {/* About link → About → Credits (attribution moved off home) */}
         <TouchableOpacity
@@ -556,6 +599,9 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '800',
     color: '#000000',
+  },
+  titleTapTarget: {
+    flexShrink: 1,
   },
   shareButton: {
     width: 36,
@@ -1016,6 +1062,18 @@ const styles = StyleSheet.create({
   },
   aboutLink: {
     fontSize: 15,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  hidePanelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#1C1C1E',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#3A3A3C',
+  },
+  hidePanelText: {
+    fontSize: 13,
     color: '#8E8E93',
     fontWeight: '500',
   },

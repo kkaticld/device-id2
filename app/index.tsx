@@ -2,6 +2,7 @@ import { PermissionStatus } from 'expo-tracking-transparency';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, Share, AppState } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
@@ -144,6 +145,28 @@ export default function HomeScreen() {
     setShowWebView(true);
   };
 
+  const buildDeviceInfoMessage = () => {
+    const deviceInfo = {
+      'Application ID': applicationId,
+      'App Version': nativeVersion,
+      'Build Version': nativeBuildVersion,
+      [Platform.OS === 'ios' ? 'IDFA' : 'GAID']: advertisingId || 'N/A',
+      [Platform.OS === 'ios' ? 'IDFV' : 'Android ID']: Platform.OS === 'ios' ? idfv : androidId,
+      'UserAgent': userAgent || 'N/A',
+      'IP Address': ipAddress || 'N/A',
+    };
+
+    const message = Object.entries(deviceInfo)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n');
+
+    return `${t('home.shareTitle')}\n\n${message}`;
+  };
+
+  const handleCopyAll = () => {
+    copyToClipboard(buildDeviceInfoMessage());
+  };
+
   const handleShare = async () => {
     try {
       Sentry.addBreadcrumb({
@@ -151,23 +174,9 @@ export default function HomeScreen() {
         message: 'User tapped share',
         level: 'info',
       });
-      
-      const deviceInfo = {
-        'Application ID': applicationId,
-        'App Version': nativeVersion,
-        'Build Version': nativeBuildVersion,
-        [Platform.OS === 'ios' ? 'IDFA' : 'GAID']: advertisingId || 'N/A',
-        [Platform.OS === 'ios' ? 'IDFV' : 'Android ID']: Platform.OS === 'ios' ? idfv : androidId,
-        'UserAgent': userAgent || 'N/A',
-        'IP Address': ipAddress || 'N/A',
-      };
-
-      const message = Object.entries(deviceInfo)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n');
 
       await Share.share({
-        message: `${t('home.shareTitle')}\n\n${message}`,
+        message: buildDeviceInfoMessage(),
         title: t('home.shareTitle')
       });
     } catch (error) {
@@ -225,11 +234,30 @@ export default function HomeScreen() {
             accessibilityLabel={t('home.title')}
             style={styles.titleTapTarget}
           >
-            <Text style={styles.dateTitle}>{t('home.title')}</Text>
+            <Text style={styles.dateTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+              {t('home.title')}
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Text style={styles.shareIcon}>↗</Text>
-          </TouchableOpacity>
+          <View style={styles.titleActions}>
+            <TouchableOpacity
+              style={styles.titleActionBtn}
+              onPress={handleCopyAll}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.copyAll')}
+            >
+              <MaterialIcons name="content-copy" size={16} color="#007AFF" />
+              <Text style={styles.titleActionText}>{t('home.copyAll')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.titleActionBtn}
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.share')}
+            >
+              <MaterialIcons name="ios-share" size={16} color="#007AFF" />
+              <Text style={styles.titleActionText}>{t('home.share')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -289,9 +317,6 @@ export default function HomeScreen() {
             <Text style={styles.listTitle}>{t('home.appInfo')}</Text>
             <Text style={styles.listSubtitle}>{t('home.appInfoSubtitle')}</Text>
           </View>
-          <TouchableOpacity style={styles.listActionBtn} onPress={() => copyToClipboard(JSON.stringify(items))}>
-             <Text style={styles.listActionText}>{t('home.copyAll')}</Text>
-          </TouchableOpacity>
         </View>
         
         <View style={styles.listContent}>
@@ -601,20 +626,29 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   titleTapTarget: {
+    flexGrow: 1,
     flexShrink: 1,
+    marginRight: 8,
   },
-  shareButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
+  titleActions: {
+    flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
+    gap: 6,
   },
-  shareIcon: {
-    fontSize: 18,
-    fontWeight: '600',
+  titleActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 4,
+  },
+  titleActionText: {
     color: '#007AFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   // Cards Common
@@ -767,17 +801,6 @@ const styles = StyleSheet.create({
   listSubtitle: {
     fontSize: 13,
     color: '#8E8E93',
-  },
-  listActionBtn: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  listActionText: {
-    color: '#007AFF',
-    fontWeight: '700',
-    fontSize: 13,
   },
   listContent: {
     gap: 16,

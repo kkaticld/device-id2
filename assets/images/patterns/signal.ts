@@ -1,0 +1,5 @@
+/** Hero pattern: Signal (heropatterns) */
+export const name = "Signal";
+export const license = "heropatterns";
+export const xml = "<svg xmlns='http://www.w3.org/2000/svg' width='1290' height='560' viewBox='0 0 1290 560'><defs><linearGradient id='g-signal' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#2563EB'/><stop offset='1' stop-color='#4C1D95'/></linearGradient><pattern id='p-signal' patternUnits='userSpaceOnUse' width='84' height='48' patternTransform='scale(1.5)'><g fill='#fff' fill-opacity='0.2'><path d=\"M0 0h12v6H0V0zm28 8h12v6H28V8zm14-8h12v6H42V0zm14 0h12v6H56V0zm0 8h12v6H56V8zM42 8h12v6H42V8zm0 16h12v6H42v-6zm14-8h12v6H56v-6zm14 0h12v6H70v-6zm0-16h12v6H70V0zM28 32h12v6H28v-6zM14 16h12v6H14v-6zM0 24h12v6H0v-6zm0 8h12v6H0v-6zm14 0h12v6H14v-6zm14 8h12v6H28v-6zm-14 0h12v6H14v-6zm28 0h12v6H42v-6zm14-8h12v6H56v-6zm0-8h12v6H56v-6zm14 8h12v6H70v-6zm0 8h12v6H70v-6zM14 24h12v6H14v-6zm14-8h12v6H28v-6zM14 8h12v6H14V8zM0 8h12v6H0V8z\"/></g></pattern></defs><rect width='100%' height='100%' fill='url(#g-signal)'/><rect width='100%' height='100%' fill='url(#p-signal)'/></svg>";
+export default xml;

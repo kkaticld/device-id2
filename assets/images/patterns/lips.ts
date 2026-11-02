@@ -1,0 +1,5 @@
+/** Hero pattern: Lips (heropatterns) */
+export const name = "Lips";
+export const license = "heropatterns";
+export const xml = "<svg xmlns='http://www.w3.org/2000/svg' width='1290' height='560' viewBox='0 0 1290 560'><defs><linearGradient id='g-lips' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#3568E8'/><stop offset='1' stop-color='#5B3FD9'/></linearGradient><pattern id='p-lips' patternUnits='userSpaceOnUse' width='112' height='92' patternTransform='scale(1.4)'><g fill='#fff' fill-opacity='0.22'><path d=\"M72 10H40L16 20H0v8h16l24-14h32l24 14h16v-8H96L72 10zm0-8H40L16 4H0v8h16l24-6h32l24 6h16V4H96L72 2zm0 84H40l-24-6H0v8h16l24 2h32l24-2h16v-8H96l-24 6zm0-8H40L16 64H0v8h16l24 10h32l24-10h16v-8H96L72 78zm0-12H40L16 56H0v4h16l24 14h32l24-14h16v-4H96L72 66zm0-16H40l-24-2H0v4h16l24 6h32l24-6h16v-4H96l-24 2zm0-16H40l-24 6H0v4h16l24-2h32l24 2h16v-4H96l-24-6zm0-16H40L16 32H0v4h16l24-10h32l24 10h16v-4H96L72 18z\"/></g></pattern></defs><rect width='100%' height='100%' fill='url(#g-lips)'/><rect width='100%' height='100%' fill='url(#p-lips)'/></svg>";
+export default xml;

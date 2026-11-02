@@ -1,6 +1,7 @@
 import { PermissionStatus } from 'expo-tracking-transparency';
-import { useState, useMemo, useEffect } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ImageBackground, Image, Share, AppState } from 'react-native';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image, Share, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
@@ -10,24 +11,15 @@ import * as Sentry from '@sentry/react-native';
 
 import { useDeviceId } from '@/hooks/useDeviceId';
 
-// Hero Patterns (CC BY 4.0, Steve Schoger) + pattern.monster (MIT) — see Credits footer
-const HERO_PATTERNS = [
-  require('@/assets/images/patterns/topography.png'),
-  require('@/assets/images/patterns/circuit-board.png'),
-  require('@/assets/images/patterns/graph-paper.png'),
-  require('@/assets/images/patterns/architect.png'),
-  require('@/assets/images/patterns/hexagons.png'),
-  require('@/assets/images/patterns/hideout.png'),
-  require('@/assets/images/patterns/connections.png'),
-  require('@/assets/images/patterns/diagonal-lines.png'),
-  require('@/assets/images/patterns/overlapping-circles.png'),
-  require('@/assets/images/patterns/signal.png'),
-  require('@/assets/images/patterns/waves.png'),
-  require('@/assets/images/patterns/hexagon-monster.png'),
-];
+import { PatternHeader } from '@/components/PatternHeader';
+import { HERO_PATTERNS, type HeroPattern } from '@/assets/images/patterns';
+import { useI18n } from '@/lib/i18n';
 
+// Hero Patterns pool (25 SVGs): Hero Patterns CC BY 4.0 + pattern.monster MIT — see Credits
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { t } = useI18n();
   
   // Sentry: 页面加载追踪
   useEffect(() => {
@@ -58,18 +50,16 @@ export default function HomeScreen() {
   const APP_ICON_IMG = require('@/assets/images/icon.png');
 
   // Independent random pattern per header image area (re-roll on remount / cold open)
-  const heroPattern = useMemo(
-    () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)],
-    [],
-  );
-  const uaPattern = useMemo(
-    () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)],
-    [],
-  );
-  const ipPattern = useMemo(
-    () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)],
-    [],
-  );
+  // Mount-time random pick (client-only) so SSR/web hydration stays stable
+  const pickPattern = () => HERO_PATTERNS[Math.floor(Math.random() * HERO_PATTERNS.length)];
+  const [heroPattern, setHeroPattern] = useState<HeroPattern>(HERO_PATTERNS[0]);
+  const [uaPattern, setUaPattern] = useState<HeroPattern>(HERO_PATTERNS[1 % HERO_PATTERNS.length]);
+  const [ipPattern, setIpPattern] = useState<HeroPattern>(HERO_PATTERNS[2 % HERO_PATTERNS.length]);
+  useEffect(() => {
+    setHeroPattern(pickPattern());
+    setUaPattern(pickPattern());
+    setIpPattern(pickPattern());
+  }, []);
   
   const { 
     advertisingId, 
@@ -101,7 +91,7 @@ export default function HomeScreen() {
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
-    showToast('Copied');
+    showToast(t('home.copied'));
   };
 
   const getIpAddress = async () => {
@@ -116,10 +106,10 @@ export default function HomeScreen() {
         setIpAddress(addr || null);
         setIpLocation(country || null);
       } else {
-        Alert.alert('Failed', 'Could not parse IP address');
+        Alert.alert(t('home.ipFailedTitle'), t('home.ipFailedParse'));
       }
     } catch (error) {
-      Alert.alert('Failed', 'Could not get IP address');
+      Alert.alert(t('home.ipFailedTitle'), t('home.ipFailedFetch'));
     } finally {
       setIsLoadingIp(false);
     }
@@ -152,8 +142,8 @@ export default function HomeScreen() {
         .join('\n');
 
       await Share.share({
-        message: `Device ID Information\n\n${message}`,
-        title: 'Device ID Information'
+        message: `${t('home.shareTitle')}\n\n${message}`,
+        title: t('home.shareTitle')
       });
     } catch (error) {
       console.error('Share error:', error);
@@ -194,7 +184,7 @@ export default function HomeScreen() {
       }
     });
     
-    showToast('Issue reported (ID: ' + eventId?.substring(0, 8) + ')');
+    showToast(t('home.issueReported', { id: eventId?.substring(0, 8) || '' }));
   };
 
   // --- Components ---
@@ -203,7 +193,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.dateHeader}>
         <View style={styles.titleRow}>
-          <Text style={styles.dateTitle}>Device ID</Text>
+          <Text style={styles.dateTitle}>{t('home.title')}</Text>
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareIcon}>↗</Text>
           </TouchableOpacity>
@@ -212,7 +202,7 @@ export default function HomeScreen() {
     );
   };
 
-  const HeroCard = ({ source }: { source: any }) => {
+  const HeroCard = ({ pattern }: { pattern: HeroPattern }) => {
     const id = Platform.OS === 'ios' ? advertisingId : advertisingId;
     const title = Platform.OS === 'ios' ? "IDFA" : "GAID";
     const hasPermission = permissionStatus === PermissionStatus.GRANTED;
@@ -223,16 +213,16 @@ export default function HomeScreen() {
         onPress={() => id && copyToClipboard(id)}
         style={[styles.cardContainer, styles.heroCard, styles.heroCardSplit]}
       >
-        <ImageBackground source={source} style={styles.heroImageTop} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+        <PatternHeader xml={pattern.xml} height={220} style={styles.heroImageTop}>
           <View style={styles.heroImageTag}>
             <Text style={styles.heroImageTagText}>{title}</Text>
           </View>
-        </ImageBackground>
+        </PatternHeader>
         <View style={styles.heroInfoPanel}>
-          <Text style={styles.heroSubtitleDark}>DEVICE IDENTIFIER</Text>
+          <Text style={styles.heroSubtitleDark}>{t('home.deviceIdentifier')}</Text>
           <Text style={styles.heroTitleDark}>{title}</Text>
           <Text style={styles.heroDescriptionDark} numberOfLines={2}>
-            {hasPermission ? (id || 'Loading...') : 'Permission required to read this identifier'}
+            {hasPermission ? (id || t('home.loading')) : t('home.permissionRequired')}
           </Text>
           {!hasPermission && (
             <TouchableOpacity 
@@ -242,7 +232,7 @@ export default function HomeScreen() {
                 requestPermission();
               }}
             >
-              <Text style={styles.heroButtonTextDark}>Allow Access</Text>
+              <Text style={styles.heroButtonTextDark}>{t('home.allowAccess')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -252,9 +242,9 @@ export default function HomeScreen() {
 
   const AppInfoCard = () => {
     const items = [
-      { label: 'Bundle ID', value: applicationId },
-      { label: 'Version', value: nativeVersion },
-      { label: 'Build', value: nativeBuildVersion },
+      { label: t('home.bundleId'), value: applicationId },
+      { label: t('home.version'), value: nativeVersion },
+      { label: t('home.build'), value: nativeBuildVersion },
       { label: Platform.OS === 'ios' ? 'IDFV' : 'Android ID', value: Platform.OS === 'ios' ? idfv : androidId },
     ];
 
@@ -263,11 +253,11 @@ export default function HomeScreen() {
         <View style={styles.listHeader}>
           <Image source={APP_ICON_IMG} style={styles.listIcon} />
           <View style={styles.listHeaderText}>
-            <Text style={styles.listTitle}>App Info</Text>
-            <Text style={styles.listSubtitle}>Basic configuration</Text>
+            <Text style={styles.listTitle}>{t('home.appInfo')}</Text>
+            <Text style={styles.listSubtitle}>{t('home.appInfoSubtitle')}</Text>
           </View>
           <TouchableOpacity style={styles.listActionBtn} onPress={() => copyToClipboard(JSON.stringify(items))}>
-             <Text style={styles.listActionText}>Copy All</Text>
+             <Text style={styles.listActionText}>{t('home.copyAll')}</Text>
           </TouchableOpacity>
         </View>
         
@@ -283,7 +273,7 @@ export default function HomeScreen() {
                 <Text style={styles.listItemValue} numberOfLines={1}>{item.value || '-'}</Text>
               </View>
               <TouchableOpacity style={styles.copyButton} onPress={() => item.value && copyToClipboard(item.value)}>
-                <Text style={styles.copyButtonText}>Copy</Text>
+                <Text style={styles.copyButtonText}>{t('home.copy')}</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           ))}
@@ -292,28 +282,28 @@ export default function HomeScreen() {
     );
   };
 
-  const FeatureCard = ({ title, subtitle, value, action, actionLabel, isLoading, source }: any) => (
+  const FeatureCard = ({ title, subtitle, value, action, actionLabel, isLoading, pattern }: any) => (
     <View style={[styles.cardContainer, styles.featureCard]}>
-      <ImageBackground source={source} style={styles.featureImage} imageStyle={{ borderTopLeftRadius: 14, borderTopRightRadius: 14 }}>
+      <PatternHeader xml={pattern.xml} height={200} style={styles.featureImage}>
         <View style={styles.featureTag}>
-          <Text style={styles.featureTagText}>NETWORK</Text>
+          <Text style={styles.featureTagText}>{t('home.network')}</Text>
         </View>
-      </ImageBackground>
+      </PatternHeader>
       <View style={styles.featureContent}>
         <Text style={styles.featureSubtitle}>{subtitle}</Text>
         <Text style={styles.featureTitle}>{title}</Text>
         <Text style={styles.featureValue} numberOfLines={2}>
-          {value || 'Tap to load'}
+          {value || t('home.tapToLoad')}
         </Text>
         
         <View style={styles.featureButtonContainer}>
           {!value ? (
             <TouchableOpacity style={styles.featureButton} onPress={action}>
-              <Text style={styles.featureButtonText}>{isLoading ? 'Loading...' : actionLabel}</Text>
+              <Text style={styles.featureButtonText}>{isLoading ? t('home.loading') : actionLabel}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.featureButton} onPress={() => copyToClipboard(value)}>
-              <Text style={styles.featureButtonText}>Copy</Text>
+              <Text style={styles.featureButtonText}>{t('home.copy')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -357,27 +347,27 @@ export default function HomeScreen() {
       >
         <DateHeader />
         
-        <HeroCard source={heroPattern} />
+        <HeroCard pattern={heroPattern} />
         
         <AppInfoCard />
         
         <FeatureCard 
-          title="User Agent"
-          subtitle="Browser identifier"
+          title={t('home.userAgent')}
+          subtitle={t('home.userAgentSubtitle')}
           value={userAgent}
           action={getUserAgent}
-          actionLabel="Get UA"
-          source={uaPattern}
+          actionLabel={t('home.getUa')}
+          pattern={uaPattern}
         />
 
         <FeatureCard
-          title="IP Address"
-          subtitle="Network address"
+          title={t('home.ipAddress')}
+          subtitle={t('home.ipSubtitle')}
           value={ipAddress ? `${ipAddress}${ipLocation ? ` (${ipLocation})` : ''}` : null}
           action={getIpAddress}
-          actionLabel="Get IP"
+          actionLabel={t('home.getIp')}
           isLoading={isLoadingIp}
-          source={ipPattern}
+          pattern={ipPattern}
         />
 
         {/* 调试面板 */}
@@ -386,30 +376,30 @@ export default function HomeScreen() {
             style={styles.debugHeader} 
             onPress={() => setShowDebugPanel(!showDebugPanel)}
           >
-            <Text style={styles.debugTitle}>🔧 Debug Info</Text>
-            <Text style={styles.debugToggle}>{showDebugPanel ? 'Hide ▲' : 'Show ▼'}</Text>
+            <Text style={styles.debugTitle}>🔧 {t('debug.title')}</Text>
+            <Text style={styles.debugToggle}>{showDebugPanel ? t('debug.hide') : t('debug.show')}</Text>
           </TouchableOpacity>
           
           {lastError && (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>❌ Error: {lastError}</Text>
+              <Text style={styles.errorText}>❌ {t('debug.errorPrefix')} {lastError}</Text>
             </View>
           )}
           
           {showDebugPanel && (
             <View style={styles.debugContent}>
               <View style={styles.debugStatusRow}>
-                <Text style={styles.debugLabel}>Permission:</Text>
+                <Text style={styles.debugLabel}>{t('debug.permission')}</Text>
                 <Text style={[
                   styles.debugValue,
                   permissionStatus === PermissionStatus.GRANTED ? styles.statusGranted :
                   permissionStatus === PermissionStatus.DENIED ? styles.statusDenied :
                   styles.statusUndetermined
                 ]}>
-                  {permissionStatus === PermissionStatus.GRANTED ? '✅ Allowed' :
-                   permissionStatus === PermissionStatus.DENIED ? '❌ Denied' :
-                   permissionStatus === PermissionStatus.UNDETERMINED ? '⏳ Not determined' :
-                   `Unknown (${permissionStatus})`}
+                  {permissionStatus === PermissionStatus.GRANTED ? `✅ ${t('debug.allowed')}` :
+                   permissionStatus === PermissionStatus.DENIED ? `❌ ${t('debug.statusDenied')}` :
+                   permissionStatus === PermissionStatus.UNDETERMINED ? `⏳ ${t('debug.notDetermined')}` :
+                   t('debug.statusUnknown', { status: String(permissionStatus) })}
                 </Text>
               </View>
               
@@ -432,40 +422,40 @@ export default function HomeScreen() {
               {/* 故障排除指南 */}
               {!advertisingId && permissionStatus === PermissionStatus.GRANTED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>🔍 Troubleshooting</Text>
-                  <Text style={styles.troubleshootText}>Permission granted but IDFA is empty. Check:</Text>
-                  <Text style={styles.troubleshootItem}>1. Use a real device (the simulator has no IDFA)</Text>
-                  <Text style={styles.troubleshootItem}>2. Settings → Privacy → Apple Advertising → Personalized Ads</Text>
-                  <Text style={styles.troubleshootItem}>3. Settings → Privacy → Tracking → this app is on</Text>
-                  <Text style={styles.troubleshootItem}>4. Restart the app or grant permission again</Text>
+                  <Text style={styles.troubleshootTitle}>🔍 {t('debug.troubleTitle')}</Text>
+                  <Text style={styles.troubleshootText}>{t('debug.troubleIntro')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble1')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble2')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble3')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.trouble4')}</Text>
                 </View>
               )}
               
               {permissionStatus === PermissionStatus.DENIED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>💡 How to enable</Text>
-                  <Text style={styles.troubleshootItem}>1. Open the Settings app</Text>
-                  <Text style={styles.troubleshootItem}>2. Scroll down to DeviceId2</Text>
-                  <Text style={styles.troubleshootItem}>3. Open the app settings</Text>
-                  <Text style={styles.troubleshootItem}>4. Turn on "Allow Tracking"</Text>
-                  <Text style={styles.troubleshootItem}>5. Come back and refresh</Text>
+                  <Text style={styles.troubleshootTitle}>💡 {t('debug.enableTitle')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable1')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable2')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable3')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable4')}</Text>
+                  <Text style={styles.troubleshootItem}>{t('debug.enable5')}</Text>
                 </View>
               )}
               
               {permissionStatus === PermissionStatus.UNDETERMINED && (
                 <View style={styles.troubleshootBox}>
-                  <Text style={styles.troubleshootTitle}>📌 Tip</Text>
-                  <Text style={styles.troubleshootText}>Tap "Allow Access" above to request permission</Text>
+                  <Text style={styles.troubleshootTitle}>📌 {t('debug.tipTitle')}</Text>
+                  <Text style={styles.troubleshootText}>{t('debug.tipText')}</Text>
                 </View>
               )}
               
-              <Text style={styles.debugSectionTitle}>📋 Logs:</Text>
+              <Text style={styles.debugSectionTitle}>📋 {t('debug.logs')}</Text>
               <ScrollView style={styles.debugLogScroll} nestedScrollEnabled>
                 {debugInfo.map((info, index) => (
                   <Text key={index} style={styles.debugLogText}>{info}</Text>
                 ))}
                 {debugInfo.length === 0 && (
-                  <Text style={styles.debugLogText}>No logs yet</Text>
+                  <Text style={styles.debugLogText}>{t('debug.noLogs')}</Text>
                 )}
               </ScrollView>
               
@@ -474,7 +464,7 @@ export default function HomeScreen() {
                   style={[styles.debugActionBtn, styles.debugCopyBtn]}
                   onPress={() => copyToClipboard(debugInfo.join('\n'))}
                 >
-                  <Text style={styles.debugCopyText}>📋 Copy Logs</Text>
+                  <Text style={styles.debugCopyText}>📋 {t('debug.copyLogs')}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -488,7 +478,7 @@ export default function HomeScreen() {
                     requestPermission();
                   }}
                 >
-                  <Text style={styles.debugRefreshText}>🔄 Retry</Text>
+                  <Text style={styles.debugRefreshText}>🔄 {t('debug.retry')}</Text>
                 </TouchableOpacity>
               </View>
               
@@ -498,23 +488,21 @@ export default function HomeScreen() {
                   style={[styles.debugActionBtn, styles.debugReportBtn, { marginTop: 12 }]}
                   onPress={reportIssue}
                 >
-                  <Text style={styles.debugReportText}>🐛 Report Issue</Text>
+                  <Text style={styles.debugReportText}>🐛 {t('debug.reportIssue')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           )}
         </View>
 
-        {/* Pattern attribution (CC BY 4.0 / MIT) */}
-        <View style={[styles.cardContainer, styles.creditsCard]}>
-          <Text style={styles.creditsTitle}>Credits</Text>
-          <Text style={styles.creditsText}>
-            Background patterns: Hero Patterns by Steve Schoger (CC BY 4.0) · heropatterns.com
-          </Text>
-          <Text style={styles.creditsText}>
-            Additional patterns: pattern.monster (MIT)
-          </Text>
-        </View>
+        {/* About link → About → Credits (attribution moved off home) */}
+        <TouchableOpacity
+          onPress={() => router.push('/about')}
+          style={styles.aboutLinkWrap}
+          accessibilityRole="link"
+        >
+          <Text style={styles.aboutLink}>{t('home.about')}</Text>
+        </TouchableOpacity>
 
       </ScrollView>
 
@@ -608,10 +596,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   heroImageTop: {
-    height: 220,
+    // height applied via PatternHeader; padding insets the tag only
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     padding: 16,
+    width: '100%',
   },
   heroImageTag: {
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -787,10 +776,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   featureImage: {
-    height: 200,
+    // height applied via PatternHeader
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     padding: 20,
+    width: '100%',
   },
   featureTag: {
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -1019,23 +1009,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Credits / Legal
-  creditsCard: {
-    padding: 16,
-    backgroundColor: '#F9F9FB',
-    shadowOpacity: 0.06,
-    elevation: 1,
+  aboutLinkWrap: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 10,
   },
-  creditsTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+  aboutLink: {
+    fontSize: 15,
     color: '#8E8E93',
-    marginBottom: 6,
-  },
-  creditsText: {
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#AEAEB2',
-    marginBottom: 4,
+    fontWeight: '500',
   },
 });

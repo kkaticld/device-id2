@@ -1,0 +1,5 @@
+/** Hero pattern: Hideout (heropatterns) */
+export const name = "Hideout";
+export const license = "heropatterns";
+export const xml = "<svg xmlns='http://www.w3.org/2000/svg' width='1290' height='560' viewBox='0 0 1290 560'><defs><linearGradient id='g-hideout' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#3568E8'/><stop offset='1' stop-color='#5B3FD9'/></linearGradient><pattern id='p-hideout' patternUnits='userSpaceOnUse' width='40' height='40' patternTransform='scale(1.6)'><g fill='#fff' fill-opacity='0.2'><path d=\"M0 38.59l2.83-2.83 1.41 1.41L1.41 40H0v-1.41zM0 1.4l2.83 2.83 1.41-1.41L1.41 0H0v1.41zM38.59 40l-2.83-2.83 1.41-1.41L40 38.59V40h-1.41zM40 1.41l-2.83 2.83-1.41-1.41L38.59 0H40v1.41zM20 18.6l2.83-2.83 1.41 1.41L21.41 20l2.83 2.83-1.41 1.41L20 21.41l-2.83 2.83-1.41-1.41L18.59 20l-2.83-2.83 1.41-1.41L20 18.59z\"/></g></pattern></defs><rect width='100%' height='100%' fill='url(#g-hideout)'/><rect width='100%' height='100%' fill='url(#p-hideout)'/></svg>";
+export default xml;

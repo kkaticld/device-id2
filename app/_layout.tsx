@@ -2,6 +2,8 @@ import { Stack } from 'expo-router';
 import * as Sentry from '@sentry/react-native';
 import * as Application from 'expo-application';
 import { Platform } from 'react-native';
+import '@/lib/i18n';
+
 
 const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g;
 
@@ -55,6 +57,8 @@ export default function RootLayout() {
         headerShown: false,
       }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="about" />
+      <Stack.Screen name="credits" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

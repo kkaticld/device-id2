@@ -51,7 +51,8 @@
           "organization": "kavalon",
           "project": "device-id2"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true
